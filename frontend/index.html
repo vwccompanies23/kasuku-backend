@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Kasuku 👽</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body { margin:0; font-family:Arial; background:#000; color:white; }
+
+    .sidebar {
+      width:220px; height:100vh; position:fixed;
+      background:#0f0f0f; padding:20px;
+      border-right:1px solid #222;
+    }
+
+    .logo { color:#1db954; font-size:22px; margin-bottom:30px; }
+
+    .menu div { margin:15px 0; cursor:pointer; color:#aaa; }
+    .menu div:hover { color:#1db954; }
+
+    .main { margin-left:220px; padding:20px; padding-bottom:140px; }
+
+    .card {
+      background:#111;
+      padding:15px;
+      border-radius:10px;
+      margin-bottom:15px;
+    }
+
+    .track {
+      display:flex;
+      justify-content:space-between;
+      padding:10px;
+      border-bottom:1px solid #222;
+    }
+
+    button {
+      background:#1db954;
+      border:none;
+      padding:6px 12px;
+      color:white;
+      cursor:pointer;
+      border-radius:5px;
+    }
+
+    input, select {
+      padding:6px;
+      margin-top:5px;
+      background:#000;
+      border:1px solid #333;
+      color:white;
+    }
+
+    /* 🔔 Notifications */
+    #notifBell {
+      position:fixed;
+      top:15px;
+      right:20px;
+      font-size:20px;
+      cursor:pointer;
+    }
+
+    #notifCount {
+      background:red;
+      border-radius:50%;
+      padding:3px 7px;
+      font-size:12px;
+    }
+
+    #notifDropdown {
+      position:fixed;
+      top:50px;
+      right:20px;
+      width:300px;
+      background:#111;
+      border:1px solid #222;
+      border-radius:10px;
+      display:none;
+      max-height:400px;
+      overflow:auto;
+    }
+
+    .notif {
+      padding:10px;
+      border-bottom:1px solid #222;
+    }
+
+    .notif.unread {
+      background:#1a1a1a;
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- 🔔 NOTIFICATIONS -->
+<div id="notifBell" onclick="toggleNotifications()">
+  🔔 <span id="notifCount">0</span>
+</div>
+
+<div id="notifDropdown"></div>
+
+<div class="sidebar">
+  <div class="logo">👽 Kasuku</div>
+  <div class="menu">
+    <div onclick="showLogin()">🔐 Login</div>
+    <div onclick="loadDashboard()">📊 Dashboard</div>
+  </div>
+</div>
+
+<div class="main">
+  <div id="content"></div>
+</div>
+
+<script>
+const content = document.getElementById('content');
+
+let liveInterval;
+let notifications = [];
+
+// =====================
+// LOGIN
+// =====================
+function showLogin() {
+  stopLive();
+
+  content.innerHTML = `
+    <div class="card">
+      <h2>Login</h2>
+      <input id="email"><br>
+      <input id="password" type="password"><br><br>
+      <button onclick="login()">Login</button>
+    </div>
+  `;
+}
+
+async function login() {
+  const res = await fetch('http://localhost:3000/users/login', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      email:email.value,
+      password:password.value
+    })
+  });
+
+  const data = await res.json();
+  localStorage.setItem('token', data.access_token);
+
+  loadDashboard();
+  loadNotifications();
+}
+
+// =====================
+// DASHBOARD
+// =====================
+async function loadDashboard() {
+  stopLive();
+
+  const token = localStorage.getItem('token');
+
+  const res = await fetch('http://localhost:3000/tracks/dashboard', {
+    headers:{ Authorization:'Bearer '+token }
+  });
+
+  const data = await res.json();
+
+  const userRes = await fetch('http://localhost:3000/users/me', {
+    headers:{ Authorization:'Bearer '+token }
+  });
+
+  const user = await userRes.json();
+
+  content.innerHTML = `
+    <h2>📊 Dashboard</h2>
+
+    <div class="card">
+      <h3>💰 Balance</h3>
+      <h1>$${(user.balance || 0).toFixed(2)}</h1>
+
+      <input id="withdrawAmount" placeholder="Amount">
+
+      <br><br>
+
+      <select id="provider">
+        <option value="stripe">💳 Stripe</option>
+        <option value="paypal">🅿️ PayPal</option>
+      </select>
+
+      <br><br>
+
+      <button onclick="withdraw()">Withdraw</button>
+    </div>
+
+    <div class="card">
+      <h3>📜 Payout History</h3>
+      <div id="payoutHistory">Loading...</div>
+    </div>
+
+    <div class="card">
+      <h3>📊 Stats</h3>
+      <p>Tracks: ${data.totalTracks}</p>
+      <p>Plays: ${data.totalPlays}</p>
+      <p>Revenue: $${data.totalRevenue.toFixed(2)}</p>
+    </div>
+  `;
+
+  loadPayoutHistory();
+  startRealtime();
+}
+
+// =====================
+// WITHDRAW
+// =====================
+async function withdraw() {
+  const amount = Number(document.getElementById('withdrawAmount').value);
+  const provider = document.getElementById('provider').value;
+
+  if (!amount || amount <= 0) {
+    return alert('Enter valid amount ❌');
+  }
+
+  try {
+    const res = await fetch('http://localhost:3000/payouts/request', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        Authorization:'Bearer '+localStorage.getItem('token')
+      },
+      body:JSON.stringify({ amount, provider })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      return alert(data.message || 'Withdraw failed ❌');
+    }
+
+    alert(`Withdrawal via ${provider.toUpperCase()} requested 💰`);
+
+    document.getElementById('withdrawAmount').value = '';
+
+    loadDashboard();
+
+  } catch (err) {
+    alert('Network error ❌');
+  }
+}
+
+// =====================
+// PAYOUT HISTORY
+// =====================
+async function loadPayoutHistory() {
+  const res = await fetch('http://localhost:3000/payouts/history', {
+    headers:{ Authorization:'Bearer '+localStorage.getItem('token') }
+    link href="http://fonnts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  });
+
+  const data = await res.json();
+
+  document.getElementById('payoutHistory').innerHTML =
+    data.map(p => `
+      <div class="track">
+        <span>$${p.amount}</span>
+        <span>${p.status}</span>
+      </div>
+    `).join('');
+}
+
+// =====================
+// NOTIFICATIONS
+// =====================
+async function loadNotifications() {
+  const res = await fetch('http://localhost:3000/notifications', {
+    headers:{ Authorization:'Bearer '+localStorage.getItem('token') }
+  });
+
+  const data = await res.json();
+
+  notifications = data;
+
+  const unread = data.filter(n => !n.isRead).length;
+  document.getElementById('notifCount').innerText = unread;
+
+  document.getElementById('notifDropdown').innerHTML =
+    data.map(n => `
+      <div class="notif ${n.isRead ? '' : 'unread'}">
+        ${n.message}
+      </div>
+    `).join('');
+}
+
+function toggleNotifications() {
+  const d = document.getElementById('notifDropdown');
+  d.style.display = d.style.display === 'block' ? 'none' : 'block';
+}
+
+// =====================
+// REALTIME
+// =====================
+function startRealtime() {
+  liveInterval = setInterval(() => {
+    loadDashboard();
+    loadNotifications();
+  }, 2000);
+}
+
+function stopLive() {
+  if (liveInterval) clearInterval(liveInterval);
+}
+
+// =====================
+// INIT
+// =====================
+localStorage.getItem('token')
+  ? (loadDashboard(), loadNotifications())
+  : showLogin();
+
+</script>
+
+</body>
+</html>
