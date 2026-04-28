@@ -83,16 +83,17 @@ console.log('JWT:', process.env.JWT_SECRET);
 }),
 
     // ✅ DATABASE (🔥 FIXED)
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: 'localhost',
-      port: 5432,
-      username: 'postgres',
-      password: 'Levoboys99$%', // ✅ YOUR REAL PASSWORD
-      database: 'kasuku',
-      autoLoadEntities: true,
-      synchronize: true,
-    }),
+  TypeOrmModule.forRoot({
+  type: 'postgres',
+  url: process.env.DATABASE_URL,
+  autoLoadEntities: true,
+  synchronize: true,
+
+  ssl:
+  process.env.NODE_ENV === 'production'
+    ? { rejectUnauthorized: false }
+    : false,
+}),
 
     // ✅ ENTITY ACCESS
     TypeOrmModule.forFeature([User, Revenue]),
