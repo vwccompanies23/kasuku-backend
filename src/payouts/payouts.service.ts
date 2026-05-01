@@ -90,6 +90,21 @@ export class PayoutsService {
     return saved;
   }
 
+  async forceUnlock(id: number) {
+  const payout = await this.payoutRepo.findOne({
+    where: { id },
+  });
+
+  if (!payout) throw new NotFoundException('Payout not found');
+
+  payout.locked = false;
+  payout.status = 'pending';
+
+  await this.payoutRepo.save(payout);
+
+  return { message: 'Payout unlocked' };
+}
+
   // =========================
   // 🚀 PROCESS PAYOUT
   // =========================
