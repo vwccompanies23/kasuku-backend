@@ -79,7 +79,8 @@ console.log(
     }),
 
     // ✅ REDIS
-    BullModule.forRoot({
+  // ❌ REMOVE OR COMMENT THIS
+BullModule.forRoot({
   redis: {
     host: process.env.REDIS_HOST,
     port: Number(process.env.REDIS_PORT),
