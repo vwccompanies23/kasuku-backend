@@ -1,7 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
-import { BullModule } from '@nestjs/bull';
 
 import { PaymentsModule } from '../payments/payments.module';
 import { EarningsModule } from '../earnings/earnings.module';
@@ -14,8 +13,9 @@ import { User } from '../users/user.entity';
 import { PayoutsCron } from './payouts.cron';
 import { PaypalModule } from 'src/paypal/paypal.module';
 
-// ✅ ADD THIS
-import { PayoutProcessor } from './payout.processor';
+// ❌ REMOVE PROCESSOR (uses queue)
+// import { PayoutProcessor } from './payout.processor';
+
 import { AdminPayoutsController } from './admin.payouts.controller';
 
 @Module({
@@ -26,10 +26,7 @@ import { AdminPayoutsController } from './admin.payouts.controller';
       secret: 'SUPER_SECRET_KEY',
     }),
 
-    // ✅ QUEUE REGISTER (IMPORTANT)
-    BullModule.registerQueue({
-      name: 'payouts',
-    }),
+    // ❌ REMOVED BullModule
 
     forwardRef(() => PaymentsModule),
     forwardRef(() => EarningsModule),
@@ -42,8 +39,8 @@ import { AdminPayoutsController } from './admin.payouts.controller';
     PayoutsService,
     PayoutsCron,
 
-    // ✅ ADD THIS (worker)
-    PayoutProcessor,
+    // ❌ REMOVE THIS (depends on Bull)
+    // PayoutProcessor,
   ],
 
   controllers: [PayoutsController, AdminPayoutsController],
