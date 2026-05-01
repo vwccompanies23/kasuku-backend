@@ -50,7 +50,7 @@ import { NotificationsGateway } from './notifications/notifications.gateway';
 // 🧾 ENTITIES
 import { User } from './users/user.entity';
 import { Revenue } from './revenue/revenue.entity';
-import { WithdrawalModule } from './withdrawals/withdrwal.module';
+import { WithdrawalModule } from './withdrawals/withdrawal.module';
 
 console.log('JWT:', process.env.JWT_SECRET);
 console.log('REDIS HOST:', process.env.REDIS_HOST);
@@ -79,14 +79,6 @@ console.log(
     }),
 
     // ✅ REDIS
-    BullModule.forRoot({
-      redis: {
-        host: process.env.REDIS_HOST,
-        port: Number(process.env.REDIS_PORT),
-        password: process.env.REDIS_PASSWORD,
-        tls: {},
-      },
-    }),
 
     // ✅ STATIC FILES (for music access)
     ServeStaticModule.forRoot({
