@@ -105,6 +105,9 @@ export class User {
   @Column({ default: false })
   chargesEnabled: boolean;
 
+  @Column({ default: 'user' })
+  role: string; // 'user' | 'admin'
+
   // =========================
   // 🔥 SUBSCRIPTION SYSTEM (IMPROVED)
   // =========================

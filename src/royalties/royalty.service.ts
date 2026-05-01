@@ -27,7 +27,7 @@ export class RoyaltyService {
     source: string,
     musicId?: number, // 🔥 NEW
   ) {
-    if (!userId || !amount) {
+    if (!userId || amount == null) {
       throw new Error('Invalid royalty data ❌');
     }
 
@@ -40,12 +40,21 @@ export class RoyaltyService {
     }
 
     // 💰 UPDATE USER BALANCE
-    user.balance = (user.balance || 0) + Number(amount);
+    let finalAmount = Number(amount);
+
+// 🔥 APPLY COMMISSION FOR FREE USERS
+if (!user.subscriptionActive && !user.isFreeOverride) {
+  finalAmount = finalAmount * 0.6; // user gets 60%
+}
+
+// 💰 UPDATE USER BALANCE
+user.balance = (user.balance || 0) + finalAmount;
     await this.userRepo.save(user);
 
     // 🧾 CREATE ROYALTY RECORD
     const royalty = this.royaltyRepo.create({
-      amount: Number(amount),
+      amount: amount,
+      netAmount: finalAmount,
       source,
       user,
 

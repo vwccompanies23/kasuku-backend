@@ -6,6 +6,8 @@ import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { BullModule } from '@nestjs/bull';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 // 🔐 AUTH
 import { AuthModule } from './auth/auth.module';
@@ -27,73 +29,82 @@ import { ArtistModule } from './artists/artist.module';
 import { PaymentsModule } from './payments/payments.module';
 import { MusicModule } from './music/music.module';
 import { I18nModule } from './i18n/i18n.module';
-
-// 🧠 SERVICES / CONTROLLERS
-import { AdminController } from './admin/admin.controller';
-import { CurrencyService } from './common/currency.service';
-import { ReleaseEvents } from './events/release.events';
-import { NotificationsGateway } from './notifications/notifications.gateway';
 import { SubscriptionModule } from './subscripetions/subscription.module';
-import { CheckoutController } from './payments/checkout.controller';
-
-import { Revenue } from './revenue/revenue.entity';
-import { RevenueService } from './revenue/revenue.service';
-import { RevenueController } from './revenue/revenue.controller';
-import { TaxModule } from './tax/taxt.module';
-import { PaypalModule } from './paypal/paypal.module';
-import { ConfigService } from '@nestjs/config';
-
-// 🧾 ENTITIES
-import { User } from './users/user.entity';
 import { RevenueModule } from './revenue/revenue.module';
+import { TaxModule } from './tax/tax.module';
+import { PaypalModule } from './paypal/paypal.module';
 import { SettingsModule } from './settings/settings.module';
 import { UploadModule } from './upload/upload.module';
 import { PostsModule } from './posts/posts.module';
 
+// 🧠 CONTROLLERS
+import { AdminController } from './admin/admin.controller';
+import { CheckoutController } from './payments/checkout.controller';
+import { RevenueController } from './revenue/revenue.controller';
+
+// 🧠 SERVICES
+import { CurrencyService } from './common/currency.service';
+import { ReleaseEvents } from './events/release.events';
+import { NotificationsGateway } from './notifications/notifications.gateway';
+
+// 🧾 ENTITIES
+import { User } from './users/user.entity';
+import { Revenue } from './revenue/revenue.entity';
+import { WithdrawalModule } from './withdrawals/withdrwal.module';
+
 console.log('JWT:', process.env.JWT_SECRET);
+console.log('REDIS HOST:', process.env.REDIS_HOST);
+console.log('REDIS PORT:', process.env.REDIS_PORT);
+console.log(
+  'REDIS PASSWORD:',
+  process.env.REDIS_PASSWORD ? 'SET' : 'MISSING',
+);
 
 @Module({
   imports: [
-    // ✅ GLOBAL CONFIG
+    // ✅ CONFIG
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
     }),
 
-    // ✅ SCHEDULER
-    ScheduleModule.forRoot(),
-
-    // ✅ EVENTS
-    EventEmitterModule.forRoot(),
-
-    // ✅ REDIS QUEUE
-    BullModule.forRoot({
-      redis: {
-        host: '127.0.0.1',
-        port: 6379,
+    // ✅ DATABASE
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      url: process.env.DATABASE_URL,
+      autoLoadEntities: true,
+      synchronize: true,
+      ssl: {
+        rejectUnauthorized: false,
       },
     }),
 
-    // ✅ AUTH STRATEGY
+    // ✅ REDIS
+    BullModule.forRoot({
+      redis: {
+        host: process.env.REDIS_HOST,
+        port: Number(process.env.REDIS_PORT),
+        password: process.env.REDIS_PASSWORD,
+        tls: {},
+      },
+    }),
+
+    // ✅ STATIC FILES (for music access)
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'uploads'),
+      serveRoot: '/uploads',
+    }),
+
+    // ✅ CORE
+    ScheduleModule.forRoot(),
+    EventEmitterModule.forRoot(),
+
+    // ✅ AUTH
     PassportModule.register({ defaultStrategy: 'jwt' }),
 
-  JwtModule.register({
-  secret: process.env.JWT_SECRET,
-  signOptions: { expiresIn: '7d' },
-}),
-
-    // ✅ DATABASE (🔥 FIXED)
-  TypeOrmModule.forRoot({
-  type: 'postgres',
-  url: process.env.DATABASE_URL,
-  autoLoadEntities: true,
-  synchronize: true,
-
-  ssl:
-  process.env.NODE_ENV === 'production'
-    ? { rejectUnauthorized: false }
-    : false,
-}),
+    JwtModule.register({
+      secret: process.env.JWT_SECRET,
+      signOptions: { expiresIn: '7d' },
+    }),
 
     // ✅ ENTITY ACCESS
     TypeOrmModule.forFeature([User, Revenue]),
@@ -118,13 +129,18 @@ console.log('JWT:', process.env.JWT_SECRET);
     RevenueModule,
     TaxModule,
     PaypalModule,
-    ArtistModule,
     SettingsModule,
-    UploadModule,
+    UploadModule, // ✅ THIS IS ENOUGH
     PostsModule,
+    WithdrawalModule,
   ],
 
-  controllers: [AdminController, CheckoutController, RevenueController],
+  controllers: [
+    AdminController,
+    CheckoutController,
+    RevenueController,
+    // ❌ DO NOT PUT UploadController HERE
+  ],
 
   providers: [
     NotificationsGateway,

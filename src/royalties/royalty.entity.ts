@@ -15,6 +15,9 @@ export class Royalty {
   id: number;
 
   @Column('float')
+  netAmount: number;
+
+  @Column('float')
   amount: number;
 
   @CreateDateColumn()

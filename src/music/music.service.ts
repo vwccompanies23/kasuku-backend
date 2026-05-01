@@ -25,31 +25,28 @@ export class MusicService {
     private royaltyService: RoyaltyService,
   ) {}
 
-  async uploadMusic(data: any) {
-    const { cover, track, body } = data;
+ async uploadMusic(data: any) {
+  const { cover, track, body } = data;
 
-    if (!track) {
-      throw new BadRequestException('Track is required ❌');
-    }
+  // ✅ VALIDATION (ONLY ONCE)
+  if (!body?.userId) {
+    throw new BadRequestException('userId is required ❌');
+  }
 
-    // =========================
-    // 🔒 SUBSCRIPTION CHECK
-    // =========================
-    if (body.userId) {
-      const user = await this.userRepo.findOne({
-        where: { id: Number(body.userId) },
-      });
+  const userId = Number(body.userId);
 
-      if (!user) {
-        throw new BadRequestException('User not found ❌');
-      }
+  if (isNaN(userId)) {
+    throw new BadRequestException('Invalid userId ❌');
+  }
 
-      if (!user.subscriptionActive && !user.isFreeOverride) {
-        throw new BadRequestException(
-          '🔒 Upgrade required to upload music',
-        );
-      }
-    }
+  if (!track) {
+    throw new BadRequestException('Track is required ❌');
+  }
+
+  // 👇 USE userId everywhere (DO NOT redeclare)
+  const user = await this.userRepo.findOne({
+    where: { id: userId },
+  });
 
     // =========================
     // 🎧 FILE TYPE
@@ -160,17 +157,24 @@ export class MusicService {
     // =========================
     // 📊 PLAN LIMIT
     // =========================
-    const userId = Number(body.userId);
-
-    const user = await this.userRepo.findOne({
-      where: { id: userId },
-    });
-
     if (!user) {
-      throw new Error('User not found');
-    }
+  throw new BadRequestException('User not found ❌');
+}
 
-    const limits = PLAN_LIMITS[user.plan || 'free'];
+// 🆓 Allow upload for everyone
+if (!user.subscriptionActive && !user.isFreeOverride) {
+  console.log('🆓 Free user uploading (40% commission applies)');
+}
+
+    const planKey = user.plan && PLAN_LIMITS[user.plan]
+  ? user.plan
+  : 'free';
+
+const limits = PLAN_LIMITS[planKey];
+
+if (!limits) {
+  throw new Error('Plan configuration missing ❌');
+}
 
     const uploads = await this.musicRepo.count({
       where: { user: { id: userId } },
@@ -191,14 +195,16 @@ export class MusicService {
       coverUrl,
 
       duration: analysis.duration || duration,
-      bpm,
+      bpm: bpm ? Math.round(bpm) : 0,
       waveform,
-      energy,
+      energy: energy ? Math.round(energy) : 0,
 
       // 🔥 NEW FIELDS
       bitrate: analysis.bitrate,
       fileSize: analysis.fileSize,
-      loudness: analysis.loudness,
+      loudness: analysis.loudness
+  ? Math.round(analysis.loudness)
+  : 0,
       hash,
       isDuplicate,
       issues,

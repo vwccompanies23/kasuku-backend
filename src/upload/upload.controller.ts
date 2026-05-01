@@ -1,38 +1,40 @@
 import {
   Controller,
   Post,
-  UploadedFile,
   UseInterceptors,
+  UploadedFile,
+  Body,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { convertToMp3 } from './audio.converter';
-import * as path from 'path';
+import { extname } from 'path';
+import { MusicService } from '../music/music.service';
 
 @Controller('upload')
 export class UploadController {
-  @Post()
+  constructor(private readonly musicService: MusicService) {}
+
+  @Post('music')
   @UseInterceptors(
-    FileInterceptor('audio', {
+    FileInterceptor('track', {
       storage: diskStorage({
-        destination: './uploads/audio',
+        destination: './uploads/music',
         filename: (req, file, cb) => {
-          const uniqueName = Date.now() + '-' + file.originalname;
-          cb(null, uniqueName);
+          const uniqueName =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
+          cb(null, uniqueName + extname(file.originalname));
         },
       }),
     }),
   )
-  async upload(@UploadedFile() file: Express.Multer.File) {
-    const inputPath = file.path;
-
-    // 🔥 convert ANY audio → MP3
-    const outputPath = await convertToMp3(inputPath);
-
-    const fileName = path.basename(outputPath);
-
-    return {
-      url: `http://localhost:3000/uploads/audio/${fileName}`,
-    };
+  async uploadMusic(
+    @UploadedFile() track: Express.Multer.File,
+    @Body() body: any,
+  ) {
+    return this.musicService.uploadMusic({
+      track,
+      cover: null, // we’ll add image upload later
+      body,
+    });
   }
 }
