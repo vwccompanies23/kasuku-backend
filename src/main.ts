@@ -20,23 +20,14 @@ async function bootstrap() {
       bodyParser: false,
     });
 
-  // =========================
-  // 🌍 CORS
-  // =========================
   app.enableCors({
     origin: true,
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
-  // =========================
-  // 🔥 SOCKET.IO
-  // =========================
   app.useWebSocketAdapter(new IoAdapter(app));
 
-  // =========================
-  // 🔐 STRIPE WEBHOOK
-  // =========================
   app.use(
     '/payments/webhook/stripe',
     bodyParser.raw({
@@ -47,49 +38,37 @@ async function bootstrap() {
     }),
   );
 
-  // =========================
-  // 📦 NORMAL REQUESTS
-  // =========================
   app.use(bodyParser.json());
   app.use(bodyParser.urlencoded({ extended: true }));
 
-  // =========================
-  // 📁 STATIC FILES (FIXED)
-  // =========================
   const uploadPath = join(__dirname, '..', 'uploads');
-
-  // ✅ ONLY THIS (KEEP)
   app.use('/uploads', express.static(uploadPath));
 
-  // ❌ REMOVED (was causing issues)
-  // app.useStaticAssets(uploadPath, {
-  //   prefix: '/uploads/',
-  // });
-
-  // =========================
-  // 🔥 QUEUE DASHBOARD
-  // =========================
+  // 🔥 SAFE QUEUE INIT
   const serverAdapter = new ExpressAdapter();
   serverAdapter.setBasePath('/admin/queues');
 
-  const payoutQueue = app.get('BullQueue_payouts');
+  let payoutQueue: any;
 
-  createBullBoard({
-    queues: [new BullAdapter(payoutQueue)],
-    serverAdapter,
-  });
+  try {
+    payoutQueue = app.get('BullQueue_payouts');
+  } catch (err) {
+    console.log('⚠️ Queue not available (Redis disabled)');
+  }
 
-  app.use('/admin/queues', serverAdapter.getRouter());
+  if (payoutQueue) {
+    createBullBoard({
+      queues: [new BullAdapter(payoutQueue)],
+      serverAdapter,
+    });
 
-  // =========================
-  // 🚀 START SERVER
-  // =========================
+    app.use('/admin/queues', serverAdapter.getRouter());
+  }
+
+  // ✅ IMPORTANT
   const port = process.env.PORT || 3000;
-
   await app.listen(port);
 
-  console.log(`🚀 Server running on http://localhost:${port}`);
-  console.log(`📊 Queue dashboard: http://localhost:${port}/admin/queues`);
+  console.log(`🚀 Server running on port ${port}`);
 }
-
 bootstrap();
