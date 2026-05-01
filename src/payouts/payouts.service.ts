@@ -8,9 +8,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { OnEvent } from '@nestjs/event-emitter';
 
-import { InjectQueue } from '@nestjs/bull';
-import type { Queue } from 'bull';
-
 import { randomUUID } from 'crypto';
 
 import { PaymentsService } from '../payments/payments.service';
@@ -34,9 +31,6 @@ export class PayoutsService {
     private readonly stripe: StripeService,
     private readonly earningsService: EarningsService,
     private readonly paypalService: PaypalService,
-
-    @InjectQueue('payouts')
-    private readonly payoutQueue: Queue,
   ) {}
 
   // =========================
@@ -90,17 +84,8 @@ export class PayoutsService {
 
     const saved: Payout = await this.payoutRepo.save(payout);
 
-    // 🚀 QUEUE JOB
-    await this.payoutQueue.add(
-      'process-payout',
-      { payoutId: saved.id },
-      {
-        attempts: 5,
-        backoff: { type: 'exponential', delay: 5000 },
-        removeOnComplete: true,
-        removeOnFail: false,
-      },
-    );
+    // ✅ DIRECT PROCESS (NO QUEUE)
+    await this.processPayout(saved);
 
     return saved;
   }
@@ -115,7 +100,6 @@ export class PayoutsService {
 
     if (!payout) throw new Error('Payout not found');
 
-    // 🔒 prevent double processing
     if (payout.locked || payout.status === 'completed') return;
 
     payout.locked = true;
@@ -167,7 +151,6 @@ export class PayoutsService {
 
       await this.payoutRepo.save(payout);
 
-      // 🔁 refund only after retries exhausted
       if (payout.retryCount >= 5) {
         const user = await this.userRepo.findOne({
           where: { id: payout.userId },
@@ -219,17 +202,11 @@ export class PayoutsService {
     });
   }
 
-  // =========================
-  // 💰 WALLET
-  // =========================
   async getWallet(userId: number) {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     return { balance: user?.balance || 0 };
   }
 
-  // =========================
-  // 🏦 APPROVE
-  // =========================
   async approvePayout(id: number) {
     const payout = await this.payoutRepo.findOne({
       where: { id },
@@ -244,80 +221,54 @@ export class PayoutsService {
   }
 
   async retryPayout(id: number) {
-  const payout = await this.payoutRepo.findOne({
-    where: { id },
-  });
+    const payout = await this.payoutRepo.findOne({
+      where: { id },
+    });
 
-  if (!payout) throw new NotFoundException('Payout not found');
+    if (!payout) throw new NotFoundException('Payout not found');
 
-  if (payout.status !== 'failed') {
-    throw new BadRequestException('Only failed payouts can be retried');
+    if (payout.status !== 'failed') {
+      throw new BadRequestException('Only failed payouts can be retried');
+    }
+
+    payout.status = 'pending';
+    payout.locked = false;
+
+    await this.payoutRepo.save(payout);
+
+    // ✅ DIRECT PROCESS
+    await this.processPayout(payout);
+
+    return { message: 'Payout retried' };
   }
 
-  payout.status = 'pending';
-  payout.locked = false;
+  async forceProcess(id: number) {
+    const payout = await this.payoutRepo.findOne({
+      where: { id },
+    });
 
-  await this.payoutRepo.save(payout);
+    if (!payout) throw new NotFoundException('Payout not found');
 
-  await this.payoutQueue.add(
-    'process-payout',
-    { payoutId: payout.id },
-    {
-      attempts: 5,
-      backoff: { type: 'exponential', delay: 5000 },
-    },
-  );
+    await this.processPayout(payout);
 
-  return { message: 'Payout retried' };
-}
+    return { message: 'Payout forced' };
+  }
 
-async forceUnlock(id: number) {
-  const payout = await this.payoutRepo.findOne({
-    where: { id },
-  });
+  async getAllPayouts() {
+    return this.payoutRepo.find({
+      relations: ['user'],
+      order: { createdAt: 'DESC' },
+    });
+  }
 
-  if (!payout) throw new NotFoundException('Payout not found');
+  async getFailedPayouts() {
+    return this.payoutRepo.find({
+      where: { status: 'failed' },
+      relations: ['user'],
+      order: { createdAt: 'DESC' },
+    });
+  }
 
-  payout.locked = false;
-  payout.status = 'pending';
-
-  await this.payoutRepo.save(payout);
-
-  return { message: 'Payout unlocked' };
-}
-
-async forceProcess(id: number) {
-  const payout = await this.payoutRepo.findOne({
-    where: { id },
-  });
-
-  if (!payout) throw new NotFoundException('Payout not found');
-
-  await this.payoutQueue.add('process-payout', {
-    payoutId: payout.id,
-  });
-
-  return { message: 'Payout forced into queue' };
-}
-
-async getAllPayouts() {
-  return this.payoutRepo.find({
-    relations: ['user'],
-    order: { createdAt: 'DESC' },
-  });
-}
-
-async getFailedPayouts() {
-  return this.payoutRepo.find({
-    where: { status: 'failed' },
-    relations: ['user'],
-    order: { createdAt: 'DESC' },
-  });
-}
-
-  // =========================
-  // ❌ REJECT
-  // =========================
   async rejectPayout(id: number) {
     const payout = await this.payoutRepo.findOne({
       where: { id },
