@@ -166,7 +166,7 @@ if (!limits) {
     });
 
     if (uploads >= limits.uploads) {
-      throw new Error('Upload limit reached. Upgrade your plan 🚀');
+      throw new BadRequestException('Upload limit reached 🚫');
     }
 
     // =========================
