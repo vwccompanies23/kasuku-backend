@@ -171,6 +171,8 @@ export class MusicService {
   fileUrl: cloudinaryUrl,
   coverUrl,
 
+  status: 'pending',
+
   duration: analysis.duration || duration,
   bpm: bpm ? Math.round(bpm) : 0,
   waveform,
@@ -222,6 +224,14 @@ export class MusicService {
       message: 'Deleted successfully 🗑️',
     };
   }
+
+  async getUserMusic(userId: number) {
+  return this.musicRepo.find({
+    where: { user: { id: Number(userId) } },
+    relations: ['user'], // optional but good
+    order: { id: 'DESC' },
+  });
+}
 
   async incrementPlay(id: number) {
     const music = await this.musicRepo.findOne({

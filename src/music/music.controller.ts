@@ -8,6 +8,7 @@ import {
   UploadedFiles,
   Body,
   BadRequestException,
+  Query,
 } from '@nestjs/common';
 
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
@@ -19,6 +20,14 @@ import { SubscriptionGuard } from '../common/guards/subscription.guard';
 @Controller('music')
 export class MusicController {
   constructor(private musicService: MusicService) {}
+
+  // =========================
+  // 🎵 GET USER MUSIC (IMPORTANT)
+  // =========================
+  @Get()
+  async getUserMusic(@Query('userId') userId: number) {
+    return this.musicService.getUserMusic(userId);
+  }
 
   // =========================
   // 🎵 UPLOAD MUSIC
@@ -105,7 +114,7 @@ export class MusicController {
   // =========================
   // 📜 GET ALL MUSIC
   // =========================
-  @Get()
+  @Get('all')
   async getAll() {
     return this.musicService.getAllMusic();
   }
@@ -118,21 +127,19 @@ export class MusicController {
     return this.musicService.deleteMusic(Number(id));
   }
 
- // (your entire code stays the same above)
+  // =========================
+  // ▶️ TRACK PLAY (ANALYTICS)
+  // =========================
+  @Post(':id/play')
+  async play(@Param('id') id: string) {
+    return this.musicService.incrementPlay(Number(id));
+  }
 
-// =========================
-// ▶️ TRACK PLAY (ANALYTICS)
-// =========================
-@Post(':id/play')
-async play(@Param('id') id: string) {
-  return this.musicService.incrementPlay(Number(id));
-}
-
-// =========================
-// 📊 DASHBOARD STATS (NEW 🔥)
-// =========================
-@Get('stats')
-async getStats() {
-  return this.musicService.getStats();
-}
+  // =========================
+  // 📊 DASHBOARD STATS
+  // =========================
+  @Get('stats')
+  async getStats() {
+    return this.musicService.getStats();
+  }
 }

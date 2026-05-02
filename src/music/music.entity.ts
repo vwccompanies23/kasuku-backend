@@ -47,6 +47,9 @@ hash: string;
 @Column({ default: false })
 isDuplicate: boolean;
 
+@Column({ default: 'pending' })
+status: string;
+
 @Column('simple-array', { nullable: true })
 issues: string[];
 

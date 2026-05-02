@@ -21,7 +21,7 @@ import { JwtAuthGuard } from '../auth/jwt.guard';
 import { GetUser } from '../auth/get-user.decorator';
 
 import { UsersService } from '../users/users.service';
-import { SubscriptionGuard } from '../common/guards/subcription.guard';
+import { SubscriptionGuard } from '../common/guards/subscription.guard';
 
 @Controller('releases')
 export class ReleasesController {
@@ -34,7 +34,7 @@ export class ReleasesController {
   // 🚀 DISTRIBUTE (leave it but don’t use now)
   // =========================
   @Post(':id/distribute')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
   async submit(
     @Param('id') id: string,
     @GetUser() user: any,
@@ -43,14 +43,6 @@ export class ReleasesController {
 
     if (!userId) {
       throw new UnauthorizedException('Invalid user ❌');
-    }
-
-    const fullUser = await this.usersService.findById(userId);
-
-    if (!fullUser.subscriptionActive && !fullUser.isFreeOverride) {
-      throw new BadRequestException(
-        '🚫 You need an active subscription to distribute music',
-      );
     }
 
     return this.releasesService.submitForDistribution(
@@ -80,7 +72,7 @@ export class ReleasesController {
   // 🔥 FULL RELEASE UPLOAD (FIXED)
   // =========================
   @Post('upload-full')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
   @UseInterceptors(
     FileFieldsInterceptor(
       [
@@ -172,7 +164,7 @@ export class ReleasesController {
   // 🎧 TRACK UPLOAD
   // =========================
   @Post(':id/upload-track')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
   @UseInterceptors(
     FileFieldsInterceptor(
       [

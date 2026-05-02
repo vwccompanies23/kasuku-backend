@@ -4,7 +4,9 @@ import {
   Post,
   UseGuards,
   Req,
-  BadRequestException, // ✅ ADDED
+  Body,
+  BadRequestException,
+  Headers,
 } from '@nestjs/common';
 
 import { PaymentsService } from './payments.service';
@@ -17,51 +19,60 @@ export class BillingController {
   ) {}
 
   // =========================
-// 🔐 GET MY BILLING INFO
-// =========================
-@Get('me')
-@UseGuards(JwtAuthGuard)
-async getMyBilling(@Req() req: any): Promise<any> {
-  const userId = Number(req.user?.userId);
-  const role = req.user?.role; // 🔥 ADD THIS
+  // 🔐 GET MY BILLING INFO
+  // =========================
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  async getMyBilling(@Req() req: any): Promise<any> {
+    const userId = Number(req.user?.userId);
+    const role = req.user?.role;
 
-  if (!userId) {
-    throw new BadRequestException('Invalid user ❌');
-  }
+    if (!userId) {
+      throw new BadRequestException('Invalid user ❌');
+    }
 
-  // 🔥 ADMIN BYPASS (MAIN FEATURE)
-  if (role === 'admin') {
+    // 🔥 ADMIN BYPASS
+    if (role === 'admin') {
+      return {
+        plan: 'pro',
+        price: 0,
+        active: true,
+        role: 'admin',
+        invoices: [],
+      };
+    }
+
+    const billing = await this.paymentsService.getBilling(userId);
+
     return {
-      plan: 'pro',
-      price: 0,
-      active: true,
-      role: 'admin',
-      invoices: [],
+      ...billing,
+      role,
     };
   }
 
-  // ✅ NORMAL USERS
-  const billing = await this.paymentsService.getBilling(userId);
-
-  return {
-    ...billing,
-    role, // 🔥 include role for frontend
-  };
-}
-
   // =========================
-  // 💳 SUBSCRIBE
+  // 💳 SUBSCRIBE (MAIN ENTRY 🔥)
   // =========================
   @Post('subscribe')
   @UseGuards(JwtAuthGuard)
-  async subscribe(@Req() req: any): Promise<any> { // ✅ TYPE ADDED
+  async subscribe(@Req() req: any, @Body() body: any) {
     const userId = Number(req.user?.userId);
 
     if (!userId) {
-      throw new BadRequestException('Invalid user ❌'); // ✅ ADDED
+      throw new BadRequestException('Invalid user ❌');
     }
 
-    return this.paymentsService.subscribe(userId);
+    const { plan, billing } = body;
+
+    if (!plan || !billing) {
+      throw new BadRequestException('Plan and billing required ❌');
+    }
+
+    return this.paymentsService.createCheckout(
+      userId,
+      plan,
+      billing,
+    );
   }
 
   // =========================
@@ -69,11 +80,11 @@ async getMyBilling(@Req() req: any): Promise<any> {
   // =========================
   @Post('cancel')
   @UseGuards(JwtAuthGuard)
-  async cancel(@Req() req: any): Promise<any> { // ✅ TYPE ADDED
+  async cancel(@Req() req: any): Promise<any> {
     const userId = Number(req.user?.userId);
 
     if (!userId) {
-      throw new BadRequestException('Invalid user ❌'); // ✅ ADDED
+      throw new BadRequestException('Invalid user ❌');
     }
 
     return this.paymentsService.cancel(userId);
@@ -84,11 +95,11 @@ async getMyBilling(@Req() req: any): Promise<any> {
   // =========================
   @Get('card')
   @UseGuards(JwtAuthGuard)
-  async getCard(@Req() req: any): Promise<any> { // ✅ TYPE ADDED
+  async getCard(@Req() req: any): Promise<any> {
     const userId = Number(req.user?.userId);
 
     if (!userId) {
-      throw new BadRequestException('Invalid user ❌'); // ✅ ADDED
+      throw new BadRequestException('Invalid user ❌');
     }
 
     return this.paymentsService.getCard(userId);
@@ -99,13 +110,24 @@ async getMyBilling(@Req() req: any): Promise<any> {
   // =========================
   @Post('create-setup-intent')
   @UseGuards(JwtAuthGuard)
-  async createSetupIntent(@Req() req: any): Promise<any> { // ✅ TYPE ADDED
+  async createSetupIntent(@Req() req: any): Promise<any> {
     const userId = Number(req.user?.userId);
 
     if (!userId) {
-      throw new BadRequestException('Invalid user ❌'); // ✅ ADDED
+      throw new BadRequestException('Invalid user ❌');
     }
 
     return this.paymentsService.createSetupIntent(userId);
+  }
+
+  // =========================
+  // 🔥 STRIPE WEBHOOK
+  // =========================
+  @Post('webhook')
+  async webhook(
+    @Req() req: any,
+    @Headers('stripe-signature') sig: string,
+  ) {
+    return this.paymentsService.handleWebhook(req, sig);
   }
 }

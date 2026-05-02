@@ -26,17 +26,24 @@ async function bootstrap() {
   });
 
   app.enableCors({
-    origin: true,
-    credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  });
+  origin: [
+    'http://localhost:5173',
+    'https://kasukuu.com', // 🔥 your real domain
+    'https://www.kasukuu.com',
+  ],
+  credentials: true,
+});
 
   app.useWebSocketAdapter(new IoAdapter(app));
 
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+  prefix: '/uploads/',
+});
+
   app.use(
-    '/payments/webhook/stripe',
+    '/payments/webhook',
     bodyParser.raw({
-      type: 'application/json',
+      type: '*/*',
       verify: (req: any, _res, buf) => {
         req.rawBody = buf;
       },

@@ -412,6 +412,156 @@ export class PaymentsService {
     console.log(`📧 ${to}: ${subject}`);
   }
 
+ async createCheckout(userId: number, plan: string, billing: string) {
+  const user = await this.userRepo.findOne({ where: { id: userId } });
+
+  if (!user) throw new Error('User not found');
+
+  let priceId: string | undefined;
+
+  if (plan === 'solo') {
+    priceId =
+      billing === 'yearly'
+        ? process.env.STRIPE_PRICE_SOLO_YEARLY
+        : process.env.STRIPE_PRICE_SOLO_MONTHLY;
+  }
+
+  if (plan === 'artists') {
+    priceId =
+      billing === 'yearly'
+        ? process.env.STRIPE_PRICE_ARTISTS_YEARLY
+        : process.env.STRIPE_PRICE_ARTISTS_MONTHLY;
+  }
+
+  if (plan === 'pro') {
+    priceId =
+      billing === 'yearly'
+        ? process.env.STRIPE_PRICE_PRO_YEARLY
+        : process.env.STRIPE_PRICE_PRO_MONTHLY;
+  }
+
+  if (!priceId) {
+    throw new Error('Invalid plan ❌');
+  }
+
+  const session = await this.stripeService.stripe.checkout.sessions.create({
+    mode: 'subscription',
+    customer_email: user.email,
+
+    line_items: [
+      {
+        price: priceId,
+        quantity: 1,
+      },
+    ],
+
+    metadata: {
+      userId: String(user.id),
+      plan,
+      billing,
+    },
+
+    success_url: 'https://kasukuu.com/success',
+    cancel_url: 'https://kasukuu.com/cancel',
+  });
+
+  return { url: session.url };
+}
+
+async handleWebhook(req: any, sig: string) {
+  let event;
+
+  try {
+    event = this.stripeService.stripe.webhooks.constructEvent(
+      req.rawBody,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET as string,
+    );
+  } catch (err) {
+    console.error('❌ Webhook signature failed', err.message);
+    throw new Error('Webhook signature invalid');
+  }
+
+  // =========================
+  // ✅ PAYMENT SUCCESS
+  // =========================
+  if (event.type === 'checkout.session.completed') {
+    const session: any = event.data.object;
+
+    const userId = Number(session.metadata?.userId);
+    const plan = session.metadata?.plan;
+    const billing = session.metadata?.billing;
+
+    if (!userId) return;
+
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) return;
+
+    // 🔥 ACTIVATE SUBSCRIPTION
+    user.subscriptionActive = true;
+    user.subscriptionStatus = 'active';
+    user.plan = plan?.toUpperCase() || 'PRO';
+    user.billingCycle = billing || 'monthly';
+
+    user.stripeCustomerId = session.customer;
+    user.subscriptionId = session.subscription;
+
+    await this.userRepo.save(user);
+
+    console.log(`✅ Subscription activated for user ${userId}`);
+  }
+
+  // =========================
+  // 🔁 RENEWAL SUCCESS
+  // =========================
+  if (event.type === 'invoice.payment_succeeded') {
+    const invoice: any = event.data.object;
+
+    const subscriptionId = invoice.subscription;
+
+    if (!subscriptionId) return;
+
+    await this.handleRenewal(subscriptionId);
+
+    console.log('🔁 Subscription renewed');
+  }
+
+  // =========================
+  // ❌ PAYMENT FAILED
+  // =========================
+  if (event.type === 'invoice.payment_failed') {
+    const invoice: any = event.data.object;
+
+    const subscriptionId = invoice.subscription;
+
+    if (!subscriptionId) return;
+
+    await this.handleFailedPayment(subscriptionId);
+
+    console.log('❌ Payment failed');
+  }
+
+  // =========================
+  // 💀 SUBSCRIPTION CANCELED
+  // =========================
+  if (event.type === 'customer.subscription.deleted') {
+    const sub: any = event.data.object;
+
+    const subscriptionId = sub.id;
+
+    if (!subscriptionId) return;
+
+    await this.autoCancel(subscriptionId);
+
+    console.log('💀 Subscription canceled');
+  }
+
+  return { received: true };
+}
+
   // =========================
   // 🔐 STRIPE STATUS
   // =========================
