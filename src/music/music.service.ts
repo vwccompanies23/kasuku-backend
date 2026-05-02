@@ -8,8 +8,7 @@ import { User } from '../users/user.entity';
 import { PLAN_LIMITS } from 'src/config/plans';
 import { AudioAnalysisService } from './audio-analysis.service';
 
-import { parseFile } from 'music-metadata';
-import * as fs from 'fs';
+import { parseBuffer } from 'music-metadata';
 import * as wav from 'node-wav';
 
 @Injectable()
@@ -26,7 +25,7 @@ export class MusicService {
   ) {}
 
  async uploadMusic(data: any) {
-  const { cover, track, body } = data;
+  const { cover, track, body, cloudinaryUrl} = data;
 
   // ✅ VALIDATION (ONLY ONCE)
   if (!body?.userId) {
@@ -66,7 +65,7 @@ export class MusicService {
     let duration = 0;
 
     try {
-      const metadata = await parseFile(track.path);
+      const metadata = await parseBuffer(track.buffer, track.mimetype);
       duration = Math.round(metadata.format.duration || 0);
     } catch (err) {
       console.log('⚠️ Duration error:', err.message);
@@ -80,7 +79,7 @@ export class MusicService {
     let energy: number | null = null;
 
     try {
-      const buffer = fs.readFileSync(track.path);
+      const buffer = track.buffer;
 
       if (trackExt === '.wav') {
         const decoded = wav.decode(buffer);
@@ -119,9 +118,8 @@ export class MusicService {
     // =========================
     // 🔥 NEW AI ANALYSIS
     // =========================
-    const analysis = await this.audioAnalysis.analyze(track.path);
-
-    const hash = await this.audioAnalysis.generateHash(track.path);
+    const analysis = await this.audioAnalysis.analyzeBuffer(track.buffer);
+    const hash = await this.audioAnalysis.generateHashFromBuffer(track.buffer);
 
     const existing = await this.musicRepo.findOne({
       where: { hash },
@@ -139,21 +137,8 @@ export class MusicService {
     // =========================
     // 🖼️ COVER
     // =========================
-    let coverUrl: string | null = null;
-
-    if (cover) {
-      const allowedImages = ['.jpg', '.jpeg', '.png'];
-      const coverExt = cover.originalname
-        .toLowerCase()
-        .substring(cover.originalname.lastIndexOf('.'));
-
-      if (!allowedImages.includes(coverExt)) {
-        throw new BadRequestException('Invalid cover image ❌');
-      }
-
-      coverUrl = `http://localhost:3000/uploads/${cover.filename}`;
-    }
-
+    let coverUrl: string | null = cover || null;
+   
     // =========================
     // 📊 PLAN LIMIT
     // =========================
@@ -191,7 +176,7 @@ if (!limits) {
       title: body.title || track.originalname,
       artist: body.artist || 'Unknown',
 
-      fileUrl: `http://localhost:3000/uploads/${track.filename}`,
+      fileUrl: cloudinaryUrl,
       coverUrl,
 
       duration: analysis.duration || duration,

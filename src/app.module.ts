@@ -4,7 +4,6 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
-import { BullModule } from '@nestjs/bull';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
@@ -62,79 +61,59 @@ console.log(
 
 @Module({
   imports: [
-    // ✅ CONFIG
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
+  ConfigModule.forRoot({ isGlobal: true }),
 
-    // ✅ DATABASE
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      url: process.env.DATABASE_URL,
-      autoLoadEntities: true,
-      synchronize: true,
-      ssl: {
-        rejectUnauthorized: false,
-      },
-    }),
+  TypeOrmModule.forRoot({
+    type: 'postgres',
+    url: process.env.DATABASE_URL,
+    autoLoadEntities: true,
+    synchronize: true,
+    ssl: { rejectUnauthorized: false },
+  }),
 
-    // ✅ REDIS
-  // ❌ REMOVE OR COMMENT THIS
-BullModule.forRoot({
-  redis: {
-    host: process.env.REDIS_HOST,
-    port: Number(process.env.REDIS_PORT),
-    password: process.env.REDIS_PASSWORD,
-    tls: {},
-  },
-}),
+  // ❌ NO REDIS HERE
 
-    // ✅ STATIC FILES (for music access)
-    ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'uploads'),
-      serveRoot: '/uploads',
-    }),
+  ServeStaticModule.forRoot({
+    rootPath: join(__dirname, '..', 'uploads'),
+    serveRoot: '/uploads',
+  }),
 
-    // ✅ CORE
-    ScheduleModule.forRoot(),
-    EventEmitterModule.forRoot(),
+  ScheduleModule.forRoot(),
+  EventEmitterModule.forRoot(),
 
-    // ✅ AUTH
-    PassportModule.register({ defaultStrategy: 'jwt' }),
+  PassportModule.register({ defaultStrategy: 'jwt' }),
 
-    JwtModule.register({
-      secret: process.env.JWT_SECRET,
-      signOptions: { expiresIn: '7d' },
-    }),
+  JwtModule.register({
+    secret: process.env.JWT_SECRET,
+    signOptions: { expiresIn: '7d' },
+  }),
 
-    // ✅ ENTITY ACCESS
-    TypeOrmModule.forFeature([User, Revenue]),
+  TypeOrmModule.forFeature([User, Revenue]),
 
-    // ✅ ALL MODULES
-    UsersModule,
-    ReleasesModule,
-    EarningsModule,
-    NotificationsModule,
-    PayoutsModule,
-    DistributionModule,
-    AuthModule,
-    AnalyticsModule,
-    EmailModule,
-    CollaboratorsModule,
-    EventsModule,
-    ArtistModule,
-    PaymentsModule,
-    MusicModule,
-    I18nModule,
-    SubscriptionModule,
-    RevenueModule,
-    TaxModule,
-    PaypalModule,
-    SettingsModule,
-    UploadModule, // ✅ THIS IS ENOUGH
-    PostsModule,
-    WithdrawalModule,
-  ],
+  UsersModule,
+  ReleasesModule,
+  EarningsModule,
+  NotificationsModule,
+  PayoutsModule,
+  DistributionModule,
+  AuthModule,
+  AnalyticsModule,
+  EmailModule,
+  CollaboratorsModule,
+  EventsModule,
+  ArtistModule,
+  PaymentsModule,
+  MusicModule,
+  I18nModule,
+  SubscriptionModule,
+  RevenueModule,
+  TaxModule,
+  PaypalModule,
+  SettingsModule,
+  UploadModule,
+  PostsModule,
+  WithdrawalModule,
+],
 
   controllers: [
     AdminController,

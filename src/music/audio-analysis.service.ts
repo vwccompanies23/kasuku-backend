@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import * as fs from 'fs';
 import { createHash } from 'crypto';
-import { parseFile } from 'music-metadata';
+import { parseFile, parseBuffer } from 'music-metadata';
 
 @Injectable()
 export class AudioAnalysisService {
 
   // =========================
-  // 🔁 HASH (DUPLICATE CHECK)
+  // 🔁 HASH (FILE PATH)
   // =========================
   async generateHash(filePath: string) {
     const buffer = fs.readFileSync(filePath);
@@ -15,7 +15,16 @@ export class AudioAnalysisService {
   }
 
   // =========================
-  // 🎧 ANALYZE AUDIO
+  // 🔁 HASH (BUFFER) ✅ NEW
+  // =========================
+  async generateHashFromBuffer(buffer: Buffer): Promise<string> {
+    return createHash('sha256')
+      .update(buffer)
+      .digest('hex');
+  }
+
+  // =========================
+  // 🎧 ANALYZE FILE PATH
   // =========================
   async analyze(filePath: string) {
     let duration = 0;
@@ -30,7 +39,6 @@ export class AudioAnalysisService {
       console.log('⚠️ Metadata error:', err.message);
     }
 
-    // 🎧 FAKE LOUDNESS ESTIMATE (simple)
     const stats = fs.statSync(filePath);
     const fileSize = stats.size;
 
@@ -42,6 +50,31 @@ export class AudioAnalysisService {
       fileSize,
       loudness: loudnessEstimate,
     };
+  }
+
+  // =========================
+  // 🎧 ANALYZE BUFFER ✅ NEW
+  // =========================
+  async analyzeBuffer(buffer: Buffer) {
+    try {
+      const metadata = await parseBuffer(buffer);
+
+      return {
+        duration: Math.round(metadata.format.duration || 0),
+        bitrate: metadata.format.bitrate || 0,
+        fileSize: buffer.length,
+        loudness: 0, // keep consistent type
+      };
+    } catch (err) {
+      console.log('⚠️ Buffer analysis failed:', err.message);
+
+      return {
+        duration: 0,
+        bitrate: 0,
+        fileSize: buffer.length,
+        loudness: 0,
+      };
+    }
   }
 
   // =========================
