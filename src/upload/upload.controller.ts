@@ -11,6 +11,7 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import cloudinary from '../config/cloudinary.config';
 import { v4 as uuid } from 'uuid';
 import { Readable } from 'stream';
+import { memoryStorage } from 'multer';
 
 // ✅ SERVICE
 import { MusicService } from '../music/music.service';
@@ -21,10 +22,15 @@ export class UploadController {
 
   @Post('music')
   @UseInterceptors(
-    FileFieldsInterceptor([
-      { name: 'file', maxCount: 1 },
-      { name: 'cover', maxCount: 1 },
-    ]),
+    FileFieldsInterceptor(
+      [
+        { name: 'file', maxCount: 1 },
+        { name: 'cover', maxCount: 1 },
+      ],
+      {
+        storage: memoryStorage(), // ✅ FIX
+      },
+    ),
   )
   async uploadMusic(
     @UploadedFiles()
@@ -42,14 +48,14 @@ export class UploadController {
     }
 
     // =========================
-    // ☁️ CLOUDINARY UPLOAD FUNC (FIXED 🔥)
+    // ☁️ CLOUDINARY UPLOAD FUNC
     // =========================
     const streamUpload = (fileBuffer: Buffer, folder: string) => {
       return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           {
             resource_type: 'auto',
-            public_id: `${folder}/${uuid()}`, // ✅ dynamic folder
+            public_id: `${folder}/${uuid()}`,
           },
           (error, result) => {
             if (result) resolve(result);
@@ -64,14 +70,10 @@ export class UploadController {
       });
     };
 
-    // =========================
-    // 🎵 UPLOAD AUDIO
-    // =========================
+    // 🎵 Upload audio
     const audioResult: any = await streamUpload(file.buffer, 'music');
 
-    // =========================
-    // 🖼️ UPLOAD COVER
-    // =========================
+    // 🖼️ Upload cover
     let coverUrl: string | null = null;
 
     if (cover) {
@@ -81,28 +83,24 @@ export class UploadController {
         throw new BadRequestException('Invalid cover image ❌');
       }
 
-      const coverResult: any = await streamUpload(cover.buffer, 'covers'); // ✅ FIXED FOLDER
+      const coverResult: any = await streamUpload(cover.buffer, 'covers');
       coverUrl = coverResult.secure_url;
     }
 
-    // =========================
-    // 💾 SAVE TO DATABASE
-    // =========================
+    // 💾 Save
     const saved = await this.musicService.uploadMusic({
       track: {
         buffer: file.buffer,
         originalname: file.originalname,
         mimetype: file.mimetype,
       },
-      cover: coverUrl, // ✅ cloudinary URL
+      cover: coverUrl,
       body,
       cloudinaryUrl: audioResult.secure_url,
       public_id: audioResult.public_id,
     });
 
-    // =========================
-    // 📤 RESPONSE
-    // =========================
+    // 📤 Response
     return {
       success: true,
       cloudinary: {
