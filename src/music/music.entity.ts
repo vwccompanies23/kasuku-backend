@@ -23,6 +23,9 @@ export class Music {
   @Column()
   fileUrl: string;
 
+  @Column({ type: 'float', default: 0 })
+  commisionRate: number;
+
   // =========================
   // 🖼️ COVER
   // =========================

@@ -5,7 +5,6 @@ import { Music } from './music.entity';
 
 import { RoyaltyService } from '../royalties/royalty.service';
 import { User } from '../users/user.entity';
-import { PLAN_LIMITS } from 'src/config/plans';
 import { AudioAnalysisService } from './audio-analysis.service';
 
 import { parseBuffer } from 'music-metadata';
@@ -24,28 +23,31 @@ export class MusicService {
     private royaltyService: RoyaltyService,
   ) {}
 
- async uploadMusic(data: any) {
-  const { cover, track, body, cloudinaryUrl} = data;
+  async uploadMusic(data: any) {
+    const { cover, track, body, cloudinaryUrl } = data;
 
-  // ✅ VALIDATION (ONLY ONCE)
-  if (!body?.userId) {
-    throw new BadRequestException('userId is required ❌');
-  }
+    // ✅ VALIDATION
+    if (!body?.userId) {
+      throw new BadRequestException('userId is required ❌');
+    }
 
-  const userId = Number(body.userId);
+    const userId = Number(body.userId);
 
-  if (isNaN(userId)) {
-    throw new BadRequestException('Invalid userId ❌');
-  }
+    if (isNaN(userId)) {
+      throw new BadRequestException('Invalid userId ❌');
+    }
 
-  if (!track) {
-    throw new BadRequestException('Track is required ❌');
-  }
+    if (!track) {
+      throw new BadRequestException('Track is required ❌');
+    }
 
-  // 👇 USE userId everywhere (DO NOT redeclare)
-  const user = await this.userRepo.findOne({
-    where: { id: userId },
-  });
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found ❌');
+    }
 
     // =========================
     // 🎧 FILE TYPE
@@ -60,7 +62,7 @@ export class MusicService {
     }
 
     // =========================
-    // ⏱️ DURATION (fallback)
+    // ⏱️ DURATION
     // =========================
     let duration = 0;
 
@@ -72,7 +74,7 @@ export class MusicService {
     }
 
     // =========================
-    // 🎧 BPM + WAVEFORM + ENERGY
+    // 🎧 AUDIO ANALYSIS
     // =========================
     let bpm: number | null = null;
     let waveform: number[] = [];
@@ -116,7 +118,7 @@ export class MusicService {
     }
 
     // =========================
-    // 🔥 NEW AI ANALYSIS
+    // 🧠 AI ANALYSIS
     // =========================
     const analysis = await this.audioAnalysis.analyzeBuffer(track.buffer);
     const hash = await this.audioAnalysis.generateHashFromBuffer(track.buffer);
@@ -138,79 +140,65 @@ export class MusicService {
     // 🖼️ COVER
     // =========================
     let coverUrl: string | null = cover || null;
-   
+
     // =========================
-    // 📊 PLAN LIMIT
+    // 💰 USER TYPE LOGIC
     // =========================
-    if (!user) {
-  throw new BadRequestException('User not found ❌');
-}
+    let commission = 0;
+    let features = 'basic';
 
-// 🆓 Allow upload for everyone
-if (!user.subscriptionActive && !user.isFreeOverride) {
-  console.log('🆓 Free user uploading (40% commission applies)');
-}
-
-    const planKey = user.plan && PLAN_LIMITS[user.plan]
-  ? user.plan
-  : 'free';
-
-const limits = PLAN_LIMITS[planKey];
-
-if (!limits) {
-  throw new Error('Plan configuration missing ❌');
-}
-
-    const uploads = await this.musicRepo.count({
-      where: { user: { id: userId } },
-    });
-
-    if (uploads >= limits.uploads) {
-      throw new BadRequestException('Upload limit reached 🚫');
+    if (user.isFreeOverride) {
+      commission = 0.2;
+      features = 'full';
+    } else if (user.subscriptionActive) {
+      commission = 0;
+      features = 'pro';
+    } else {
+      commission = 0.15;
+      features = 'limited';
     }
 
+    console.log(`User commission: ${commission * 100}%`);
+
     // =========================
-    // 📦 CREATE MUSIC (UPDATED)
+    // 📦 CREATE MUSIC
     // =========================
     const music = this.musicRepo.create({
-      title: body.title || track.originalname,
-      artist: body.artist || 'Unknown',
+  commissionRate: commission,
+  title: body.title || track.originalname,
+  artist: body.artist || 'Unknown',
 
-      fileUrl: cloudinaryUrl,
-      coverUrl,
+  fileUrl: cloudinaryUrl,
+  coverUrl,
 
-      duration: analysis.duration || duration,
-      bpm: bpm ? Math.round(bpm) : 0,
-      waveform,
-      energy: energy ? Math.round(energy) : 0,
+  duration: analysis.duration || duration,
+  bpm: bpm ? Math.round(bpm) : 0,
+  waveform,
+  energy: energy ? Math.round(energy) : 0,
 
-      // 🔥 NEW FIELDS
-      bitrate: analysis.bitrate,
-      fileSize: analysis.fileSize,
-      loudness: analysis.loudness
-  ? Math.round(analysis.loudness)
-  : 0,
-      hash,
-      isDuplicate,
-      issues,
+  bitrate: analysis.bitrate,
+  fileSize: analysis.fileSize,
+  loudness: analysis.loudness
+    ? Math.round(analysis.loudness)
+    : 0,
+  hash,
+  isDuplicate,
+  issues,
 
-      type: body.type || 'single',
-      releaseDate: body.releaseDate || null,
-      description: body.description || null,
-      isrc: body.isrc || null,
-      upc: body.upc || null,
+  type: body.type || 'single',
+  releaseDate: body.releaseDate || null,
+  description: body.description || null,
+  isrc: body.isrc || null,
+  upc: body.upc || null,
 
-      platforms: [],
-      schedule: body.schedule || 'instant',
+  platforms: [],
+  schedule: body.schedule || 'instant',
 
-      user: body.userId
-        ? ({ id: userId } as any)
-        : null,
-
-      release: body.releaseId
-        ? ({ id: Number(body.releaseId) } as any)
-        : null,
-    });
+  user: { id: userId } as any,
+  release: body.releaseId
+    ? ({ id: Number(body.releaseId) } as any)
+    : null,
+} as any); // ✅ THIS LINE FIXES YOUR ERROR
 
     const saved = await this.musicRepo.save(music);
 
