@@ -406,7 +406,39 @@ async updateProfile(userId: number, data: any) {
     throw new BadRequestException('Invalid user ID');
   }
 
-  await this.usersRepo.update(userId, data);
+  const user = await this.usersRepo.findOne({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    throw new NotFoundException('User not found ❌');
+  }
+
+  // ✅ ONLY SAFE FIELDS
+  user.firstName = data.firstName || user.firstName;
+
+  user.lastName = data.lastName || user.lastName;
+
+  user.artistName =
+    data.artistName || user.artistName;
+
+  user.bio = data.bio || user.bio;
+
+  user.avatar = data.avatar || user.avatar;
+
+  user.website = data.website || user.website;
+
+  user.instagram =
+    data.instagram || user.instagram;
+
+  user.twitter =
+    data.twitter || user.twitter;
+
+  user.youtube =
+    data.youtube || user.youtube;
+
+  await this.usersRepo.save(user);
+
   return this.findById(userId);
 }
 
