@@ -12,6 +12,7 @@ import { AudioAnalysisService } from './audio-analysis.service';
 
 // ✅ ADD THIS
 import { RoyaltiesModule } from '../royalties/royalty.module';
+import { AuthModule } from 'src/auth/auth.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { RoyaltiesModule } from '../royalties/royalty.module';
 
     // ✅ ADD THIS (FIXES YOUR ERROR)
     RoyaltiesModule,
+    AuthModule,
   ],
 
   controllers: [MusicController],

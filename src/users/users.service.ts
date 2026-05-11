@@ -8,13 +8,18 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { User } from './user.entity';
+import { UserRole } from './user-role.enum';
 import { Follow } from './follow.entity';
+import { Music } from '../music/music.entity';
+import { Release } from '../releases/release.entity';
 
 import { AccountType } from './account-type.enum';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 
 import { EmailService } from '../email/email.service';
+import { DistributionService } from '../distributions/distribution.service';
+import { CloudinaryService } from '../common/cloudinary.service';
 
 @Injectable()
 export class UsersService {
@@ -25,8 +30,16 @@ export class UsersService {
     @InjectRepository(Follow)
     private readonly followRepo: Repository<Follow>,
 
+    @InjectRepository(Music)
+    private readonly musicRepo: Repository<Music>,
+
+    @InjectRepository(Release)
+    private readonly releaseRepo: Repository<Release>,
+
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
+    private readonly distributionService: DistributionService,
+    private readonly cloudinary: CloudinaryService,
   ) {}
 
   // =====================
@@ -98,20 +111,106 @@ async sendEmailToUser(
 // =====================
 // 🆓 FREE ACCESS
 // =====================
-async setFreeAccess(userId: number, value: boolean) {
+async setFreeAccess(
+  userId: number,
+  data: {
+    plan: string;
+    days?: number;
+    months?: number;
+    years?: number;
+    revenuePercentage?: number;
+    isManaged?: boolean;
+  },
+) {
   const user = await this.usersRepo.findOne({
     where: { id: userId },
   });
 
   if (!user) {
-    throw new NotFoundException('User not found ❌');
+    throw new NotFoundException(
+      'User not found ❌',
+    );
   }
 
-  user.isFreeOverride = value;
+  // 🔥 PLAN
+  user.plan = data.plan;
+
+  // 🔥 FREE ACCESS
+  user.isFreeOverride = true;
+
+  // 🔥 REVENUE %
+  user.revenuePercentage =
+    data.revenuePercentage ?? 15;
+
+  // 🔥 MANAGED
+  user.isManaged =
+    data.isManaged || false;
+
+  // 🔥 EXPIRE DATE
+  const expire = new Date();
+
+if (data.days) {
+  expire.setDate(
+    expire.getDate() + data.days,
+  );
+}
+
+if (data.months) {
+  expire.setMonth(
+    expire.getMonth() + data.months,
+  );
+}
+
+if (data.years) {
+  expire.setFullYear(
+    expire.getFullYear() + data.years,
+  );
+}
+
+if (
+  data.days ||
+  data.months ||
+  data.years
+) {
+  user.freeAccessExpiresAt =
+    expire;
+}
+
   await this.usersRepo.save(user);
 
-  return { success: true };
+  // 📧 EMAIL
+  await this.emailService.send(
+    user.email,
+    '🎉 Kasuku Access Granted',
+    `
+    Your account has been upgraded to ${data.plan.toUpperCase()} access.
+
+    ${
+      data.months
+        ? `Access expires in ${data.months} month(s).`
+        : 'You have unlimited access.'
+    }
+
+    Revenue share: ${
+      user.revenuePercentage
+    }%
+    `,
+    {
+      name: user.artistName,
+      buttonText: 'Open Dashboard 🚀',
+      buttonLink:
+        'https://kasukuu.com/dashboard',
+    },
+  );
+
+  return {
+    success: true,
+    message:
+      'Managed access granted successfully 🚀',
+  };
 }
+
+
 
 // =====================
 // 📧 SEND TO ALL USERS (FIX)
@@ -286,7 +385,7 @@ async banUser(userId: number) {
     throw new NotFoundException('User not found ❌');
   }
 
-  if (user.isAdmin) {
+  if (user.role === 'admin') {
     throw new BadRequestException('Cannot ban admin 🚫');
   }
 
@@ -331,7 +430,7 @@ async updateProfile(userId: number, data: any) {
     const token = this.jwtService.sign({
       userId: user.id,
       email: user.email,
-      isAdmin: user.isAdmin,
+      role: user.role,
     });
 
     const { password: _, ...safeUser } = user;
@@ -374,6 +473,48 @@ async updateProfile(userId: number, data: any) {
     };
   }
 
+  async makeAdmin(userId: number) {
+  const user = await this.usersRepo.findOne({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    throw new NotFoundException(
+      'User not found ❌',
+    );
+  }
+
+  user.role = UserRole.ADMIN;
+
+  await this.usersRepo.save(user);
+
+  return {
+    success: true,
+    message: 'User promoted to admin ✅',
+  };
+}
+
+async removeAdmin(userId: number) {
+  const user = await this.usersRepo.findOne({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    throw new NotFoundException(
+      'User not found ❌',
+    );
+  }
+
+  user.role = UserRole.USER;
+
+  await this.usersRepo.save(user);
+
+  return {
+    success: true,
+    message: 'Admin removed successfully ✅',
+  };
+}
+
   // =====================
 // ➕ FOLLOW (QUICK FIX)
 // =====================
@@ -395,14 +536,134 @@ async unfollowUser(userId: number, targetId: number) {
   // =====================
   // 🗑 DELETE USER
   // =====================
-  async delete(userId: number) {
-    const user = await this.usersRepo.findOne({ where: { id: userId } });
+async delete(userId: number) {
+  const user = await this.usersRepo.findOne({
+    where: { id: userId },
+    relations: ['releases'],
+  });
 
-    if (!user) throw new NotFoundException('User not found ❌');
-    if (user.isAdmin) throw new BadRequestException('Cannot delete admin 🚫');
-
-    await this.usersRepo.delete(userId);
-
-    return { success: true };
+  if (!user) {
+    throw new NotFoundException('User not found ❌');
   }
+
+  if (user.role === 'admin') {
+    throw new BadRequestException('Cannot delete admin 🚫');
+  }
+
+  console.log('🔥 STARTING FULL ACCOUNT DELETE');
+
+  // =========================
+  // 1. GET USER RELEASES
+  // =========================
+  const releases = await this.releaseRepo.find({
+    where: { user: { id: userId } as any },
+    relations: ['music'],
+  });
+
+  // =========================
+  // 2. SEND TAKEDOWN REQUEST
+  // =========================
+  for (const release of releases) {
+    console.log(`🚫 Takedown for release: ${release.title}`);
+
+    // mark status
+    release.status = 'takedown_requested';
+
+    await this.releaseRepo.save(release);
+
+    // send to distributor
+    try {
+      await this.distributionService.sendRelease({
+        type: 'TAKEDOWN',
+        releaseId: release.id,
+        title: release.title,
+      });
+    } catch (err) {
+      console.log('⚠️ Takedown failed:', err.message);
+    }
+  }
+
+  // =========================
+// ☁️ DELETE CLOUD FILES
+// =========================
+for (const release of releases) {
+  for (const track of release.music || []) {
+    if (track.fileUrl) {
+      await this.cloudinary.deleteFile(track.fileUrl);
+    }
+
+    if (track.coverUrl) {
+      await this.cloudinary.deleteFile(track.coverUrl);
+    }
+  }
+}
+
+console.log('☁️ All Cloudinary files deleted');
+
+  // =========================
+  // 3. DELETE MUSIC
+  // =========================
+  await this.musicRepo.delete({
+    user: { id: userId } as any,
+  });
+
+  console.log('🗑️ All music deleted');
+
+  // =========================
+  // 4. DELETE RELEASES
+  // =========================
+  await this.releaseRepo.delete({
+    user: { id: userId } as any,
+  });
+
+  console.log('🗑️ All releases deleted');
+
+  // =========================
+  // 5. DELETE USER
+  // =========================
+  await this.usersRepo.delete(userId);
+
+  console.log('💀 USER FULLY DELETED');
+
+  return {
+    success: true,
+    message: 'Account and all data deleted successfully 🚀',
+  };
+ }
+
+ // =========================
+// 📞 UPDATE CONTACT INFO
+// =========================
+async updateContactInfo(
+  userId: number,
+  data: any,
+) {
+  const user =
+    await this.usersRepo.findOne({
+      where: { id: userId },
+    });
+
+  if (!user) {
+    throw new BadRequestException(
+      'User not found ❌',
+    );
+  }
+
+  user.firstName =
+    data.firstName || user.firstName;
+
+  user.lastName =
+    data.lastName || user.lastName;
+
+  user.phone =
+    data.phone || user.phone;
+
+  user.country =
+    data.country || user.country;
+
+  user.address =
+    data.address || user.address;
+
+  return this.usersRepo.save(user);
+}
 }

@@ -65,7 +65,7 @@ export class PaymentsAdminController {
       plan: u.plan,
       subscriptionStatus: u.subscriptionStatus,
       balance: u.balance,
-      isAdmin: u.isAdmin,
+      role: u.role,
       isActive: u.isActive,
       noSubscriptionFee: u.noSubscriptionFee,
     }));

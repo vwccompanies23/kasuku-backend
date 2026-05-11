@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   UseGuards,
   UnauthorizedException,
@@ -30,9 +31,6 @@ export class ReleasesController {
     private readonly usersService: UsersService,
   ) {}
 
-  // =========================
-  // 🚀 DISTRIBUTE (leave it but don’t use now)
-  // =========================
   @Post(':id/distribute')
   @UseGuards(JwtAuthGuard, SubscriptionGuard)
   async submit(
@@ -42,7 +40,9 @@ export class ReleasesController {
     const userId = Number(user?.userId);
 
     if (!userId) {
-      throw new UnauthorizedException('Invalid user ❌');
+      throw new UnauthorizedException(
+        'Invalid user ❌',
+      );
     }
 
     return this.releasesService.submitForDistribution(
@@ -51,9 +51,6 @@ export class ReleasesController {
     );
   }
 
-  // =========================
-  // ⚡ ALT ROUTE
-  // =========================
   @Post('submit/:id')
   @UseGuards(JwtAuthGuard, SubscriptionGuard)
   async submitRelease(
@@ -68,22 +65,34 @@ export class ReleasesController {
     );
   }
 
-  // =========================
-  // 🔥 FULL RELEASE UPLOAD (FIXED)
-  // =========================
   @Post('upload-full')
   @UseGuards(JwtAuthGuard, SubscriptionGuard)
   @UseInterceptors(
     FileFieldsInterceptor(
       [
-        { name: 'cover', maxCount: 1 },
-        { name: 'tracks', maxCount: 50 },
+        {
+          name: 'cover',
+          maxCount: 1,
+        },
+        {
+          name: 'tracks',
+          maxCount: 50,
+        },
       ],
       {
         storage: diskStorage({
           destination: './uploads',
-          filename: (req, file, cb) => {
-            const unique = Date.now() + '-' + file.originalname;
+
+          filename: (
+            req,
+            file,
+            cb,
+          ) => {
+            const unique =
+              Date.now() +
+              '-' +
+              file.originalname;
+
             cb(null, unique);
           },
         }),
@@ -96,87 +105,130 @@ export class ReleasesController {
       cover?: Express.Multer.File[];
       tracks?: Express.Multer.File[];
     },
-    @Body() body: any,
-    @GetUser() user: any,
-  ) {
-    console.log('📦 RAW BODY:', body);
 
-    const userId = Number(user?.userId);
+    @Body()
+    body: any,
+
+    @GetUser()
+    user: any,
+  ) {
+    console.log(
+      '📦 RAW BODY:',
+      body,
+    );
+
+    const userId = Number(
+      user?.userId,
+    );
 
     if (!userId) {
-      throw new UnauthorizedException('Invalid user ❌');
+      throw new UnauthorizedException(
+        'Invalid user ❌',
+      );
     }
 
-    const cover = files.cover?.[0];
-    const tracks = files.tracks || [];
+    const cover =
+      files.cover?.[0];
+
+    const tracks =
+      files.tracks || [];
 
     if (!tracks.length) {
-      throw new BadRequestException('No tracks uploaded ❌');
+      throw new BadRequestException(
+        'No tracks uploaded ❌',
+      );
     }
 
-    // =========================
-    // 🔥 FIX: REAL JSON PARSE
-    // =========================
-    let platforms = [];
+    let platforms: any[] = [];
 
     if (body.platforms) {
       try {
         platforms =
-          typeof body.platforms === 'string'
-            ? JSON.parse(body.platforms) // ✅ THIS IS THE REAL FIX
+          typeof body.platforms ===
+          'string'
+            ? JSON.parse(
+                body.platforms,
+              )
             : body.platforms;
       } catch (err) {
-        console.error('❌ Platform parse error:', err);
+        console.error(
+          '❌ Platform parse error:',
+          err,
+        );
+
         platforms = [];
       }
     }
 
-    console.log('✅ PARSED PLATFORMS:', platforms);
+    console.log(
+      '✅ PARSED PLATFORMS:',
+      platforms,
+    );
 
-    if (!Array.isArray(platforms) || platforms.length === 0) {
-      throw new BadRequestException(
-        'At least one platform ID is required ❌',
-      );
-    }
+    let trackTitles: string[] = [];
 
-    // =========================
-    // TRACK TITLES FIX
-    // =========================
-    let trackTitles = body.trackTitles || [];
+if (body.trackTitles) {
+  try {
+    trackTitles =
+      typeof body.trackTitles === 'string'
+        ? JSON.parse(body.trackTitles)
+        : body.trackTitles;
+  } catch (err) {
+    console.log(
+      '❌ Track titles parse error:',
+      err,
+    );
 
-    if (!Array.isArray(trackTitles)) {
-      trackTitles = [trackTitles];
-    }
+    trackTitles = [];
+  }
+}
 
-    return this.releasesService.createFullRelease({
-      body: {
-        ...body,
-        platforms, // ✅ CLEAN ARRAY
+    return this.releasesService.createFullRelease(
+      {
+        body: {
+          ...body,
+          platforms,
+        },
+
+        cover,
+        tracks,
+        trackTitles,
+        userId,
       },
-      cover,
-      tracks,
-      trackTitles,
-      userId,
-    });
+    );
   }
 
-  // =========================
-  // 🎧 TRACK UPLOAD
-  // =========================
   @Post(':id/upload-track')
-  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @UseGuards(
+    JwtAuthGuard,
+    SubscriptionGuard,
+  )
   @UseInterceptors(
     FileFieldsInterceptor(
       [
-        { name: 'cover', maxCount: 1 },
-        { name: 'track', maxCount: 1 },
+        {
+          name: 'cover',
+          maxCount: 1,
+        },
+        {
+          name: 'track',
+          maxCount: 1,
+        },
       ],
       {
         storage: diskStorage({
           destination: './uploads',
-          filename: (req, file, cb) => {
+
+          filename: (
+            req,
+            file,
+            cb,
+          ) => {
             const unique =
-              Date.now() + '-' + file.originalname;
+              Date.now() +
+              '-' +
+              file.originalname;
+
             cb(null, unique);
           },
         }),
@@ -184,26 +236,41 @@ export class ReleasesController {
     ),
   )
   uploadToRelease(
-    @Param('id') id: string,
+    @Param('id')
+    id: string,
+
     @UploadedFiles()
     files: {
       cover?: Express.Multer.File[];
       track?: Express.Multer.File[];
     },
-    @Body() body: any,
-    @GetUser() user: any,
+
+    @Body()
+    body: any,
+
+    @GetUser()
+    user: any,
   ) {
-    const userId = Number(user?.userId);
+    const userId = Number(
+      user?.userId,
+    );
 
     if (!userId) {
-      throw new UnauthorizedException('Invalid user ❌');
+      throw new UnauthorizedException(
+        'Invalid user ❌',
+      );
     }
 
-    const cover = files.cover?.[0];
-    const track = files.track?.[0];
+    const cover =
+      files.cover?.[0];
+
+    const track =
+      files.track?.[0];
 
     if (!track) {
-      throw new BadRequestException('Track required ❌');
+      throw new BadRequestException(
+        'Track required ❌',
+      );
     }
 
     return this.releasesService.uploadTrackToRelease(
@@ -211,84 +278,171 @@ export class ReleasesController {
       {
         cover,
         track,
+
         body: {
           ...body,
           userId,
-          releaseId: Number(id),
+          releaseId:
+            Number(id),
         },
       },
     );
   }
 
-  // =========================
-  // 📜 GET ALL
-  // =========================
   @Get()
   findAll() {
     return this.releasesService.findAll();
   }
 
-  // =========================
-  // 🔐 MY RELEASES
-  // =========================
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  getMyReleases(@GetUser() user: any) {
-    const userId = Number(user?.userId);
+  getMyReleases(
+    @GetUser() user: any,
+  ) {
+    const userId = Number(
+      user?.userId,
+    );
 
     if (!userId) {
-      throw new UnauthorizedException('Invalid user ❌');
+      throw new UnauthorizedException(
+        'Invalid user ❌',
+      );
     }
 
-    return this.releasesService.getUserReleases(userId);
+    return this.releasesService.getUserReleases(
+      userId,
+    );
   }
 
-  // =========================
-  // 🔗 GET BY SLUG
-  // =========================
   @Get('slug/:slug')
-  getBySlug(@Param('slug') slug: string) {
-    return this.releasesService.findBySlug(slug);
+  getBySlug(
+    @Param('slug')
+    slug: string,
+  ) {
+    return this.releasesService.findBySlug(
+      slug,
+    );
   }
 
-  // =========================
-  // 🌍 PUBLIC RELEASE
-  // =========================
-  @Get(':id')
-  getPublicRelease(@Param('id') id: string) {
-    return this.releasesService.findOne(Number(id));
-  }
-
-  // =========================
-  // 🔥 ADMIN: GET PENDING
-  // =========================
   @Get('admin/pending')
   @UseGuards(JwtAuthGuard)
   getPending() {
     return this.releasesService.getPendingReleases();
   }
 
-  // =========================
-  // ✅ ADMIN: APPROVE
-  // =========================
   @Post('admin/:id/approve')
   @UseGuards(JwtAuthGuard)
-  approve(@Param('id') id: string) {
-    return this.releasesService.approveRelease(Number(id));
+  approve(
+    @Param('id')
+    id: string,
+  ) {
+    return this.releasesService.approveRelease(
+      Number(id),
+    );
   }
 
-  // =========================
-  // ❌ ADMIN: REJECT
-  // =========================
   @Post('admin/:id/reject')
   @UseGuards(JwtAuthGuard)
   reject(
-    @Param('id') id: string,
-    @Body() body: any,
+    @Param('id')
+    id: string,
+
+    @Body()
+    body: any,
   ) {
     return this.releasesService.rejectRelease(
       Number(id),
       body.reason,
+    );
+  }
+
+  @Get(':id')
+  getPublicRelease(
+    @Param('id')
+    id: string,
+  ) {
+    return this.releasesService.findOne(
+      Number(id),
+    );
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        {
+          name: 'cover',
+          maxCount: 1,
+        },
+        {
+          name: 'file',
+          maxCount: 1,
+        },
+      ],
+      {
+        storage: diskStorage({
+          destination: './uploads',
+
+          filename: (
+            req,
+            file,
+            cb,
+          ) => {
+            const unique =
+              Date.now() +
+              '-' +
+              file.originalname;
+
+            cb(null, unique);
+          },
+        }),
+      },
+    ),
+  )
+  async updateRelease(
+    @Param('id')
+    id: string,
+
+    @UploadedFiles()
+    files: {
+      cover?: Express.Multer.File[];
+      file?: Express.Multer.File[];
+    },
+
+    @Body()
+    body: any,
+
+    @GetUser()
+    user: any,
+  ) {
+    const userId = Number(
+      user?.userId,
+    );
+
+    if (!userId) {
+      throw new UnauthorizedException(
+        'Invalid user ❌',
+      );
+    }
+
+    return this.releasesService.updateRelease(
+      Number(id),
+      {
+        ...body,
+
+        userId,
+
+        cover:
+          files.cover?.[0]
+            ? `/uploads/${files.cover[0].filename}`
+            : null,
+
+        audio:
+          files.file?.[0]
+            ? `/uploads/${files.file[0].filename}`
+            : null,
+      },
     );
   }
 }

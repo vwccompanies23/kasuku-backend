@@ -10,6 +10,7 @@ import {
 
 import { RevenueService } from './revenue.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
+import { AdminGuard } from '../auth/admin.guard';
 
 @Controller('revenue')
 export class RevenueController {
@@ -32,16 +33,10 @@ export class RevenueController {
   // 📊 ADMIN DASHBOARD (FIXED)
   // =========================
   @Get('admin')
-  @UseGuards(JwtAuthGuard)
-  async admin(@Req() req: any) {
-    // ✅ FIX ROLE CHECK (your JWT uses isAdmin, not role)
-    if (!req.user?.isAdmin) {
-      throw new ForbiddenException('Admin only ❌');
-    }
-
-    // ✅ USE DETAILED STATS (not old one)
-    return this.service.getAdminStatsDetailed();
-  }
+@UseGuards(JwtAuthGuard, AdminGuard)
+async admin() {
+  return this.service.getAdminStatsDetailed();
+}
 
   // =========================
   // 👤 USER VIEW

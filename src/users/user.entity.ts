@@ -6,6 +6,7 @@ import {
 } from 'typeorm';
 
 import { AccountType } from './account-type.enum';
+import { UserRole } from './user-role.enum';
 import { Release } from '../releases/release.entity';
 import { Follow } from './follow.entity';
 import { Payout } from 'src/payouts/payout.entity';
@@ -22,6 +23,22 @@ export class User {
   @Column()
   password: string;
 
+@Column({ nullable: true })
+firstName: string;
+
+@Column({ nullable: true })
+lastName: string;
+
+@Column({ nullable: true })
+phone: string;
+
+@Column({ nullable: true })
+country: string;
+
+@Column({ nullable: true })
+address: string;
+
+
   @Column({
     type: 'enum',
     enum: AccountType,
@@ -31,9 +48,6 @@ export class User {
 
   @Column({ default: true })
   isActive: boolean;
-
-  @Column({ default: false })
-  isAdmin: boolean;
 
   @Column({ default: 'New Artist' })
   artistName: string;
@@ -83,6 +97,9 @@ export class User {
   @Column({ default: false })
   isFreeOverride: boolean;
 
+  @Column({ type: 'timestamp', nullable: true })
+   freeAccessExpiresAt: Date;
+
   @Column({ type: 'float', default: 0 })
   platformFeePercent: number;
 
@@ -105,8 +122,12 @@ export class User {
   @Column({ default: false })
   chargesEnabled: boolean;
 
-  @Column({ default: 'user' })
-  role: string; // 'user' | 'admin'
+ @Column({
+  type: 'enum',
+  enum: UserRole,
+  default: UserRole.USER,
+})
+role: UserRole;
 
   // =========================
   // 🔥 SUBSCRIPTION SYSTEM (IMPROVED)

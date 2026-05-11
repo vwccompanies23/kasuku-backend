@@ -17,12 +17,21 @@ export class AudioAnalysisService {
   // =========================
   // 🔁 HASH (BUFFER) ✅ NEW
   // =========================
-  async generateHashFromBuffer(buffer: Buffer): Promise<string> {
-    return createHash('sha256')
-      .update(buffer)
-      .digest('hex');
+ async generateHashFromBuffer(
+  buffer?: Buffer,
+): Promise<string> {
+
+  // ✅ prevent crash
+  if (!buffer) {
+    console.log('⚠️ No buffer for hash');
+
+    return '';
   }
 
+  return createHash('sha256')
+    .update(buffer)
+    .digest('hex');
+}
   // =========================
   // 🎧 ANALYZE FILE PATH
   // =========================
@@ -55,27 +64,49 @@ export class AudioAnalysisService {
   // =========================
   // 🎧 ANALYZE BUFFER ✅ NEW
   // =========================
-  async analyzeBuffer(buffer: Buffer) {
-    try {
-      const metadata = await parseBuffer(buffer);
+  async analyzeBuffer(buffer?: Buffer) {
+  // ✅ prevent crash
+  if (!buffer) {
+    console.log('⚠️ No buffer provided');
 
-      return {
-        duration: Math.round(metadata.format.duration || 0),
-        bitrate: metadata.format.bitrate || 0,
-        fileSize: buffer.length,
-        loudness: 0, // keep consistent type
-      };
-    } catch (err) {
-      console.log('⚠️ Buffer analysis failed:', err.message);
-
-      return {
-        duration: 0,
-        bitrate: 0,
-        fileSize: buffer.length,
-        loudness: 0,
-      };
-    }
+    return {
+      duration: 0,
+      bitrate: 0,
+      fileSize: 0,
+      loudness: 0,
+    };
   }
+
+  try {
+    const metadata = await parseBuffer(buffer);
+
+    return {
+      duration: Math.round(
+        metadata.format.duration || 0,
+      ),
+
+      bitrate:
+        metadata.format.bitrate || 0,
+
+      fileSize: buffer.length,
+
+      loudness: 0,
+    };
+
+  } catch (err) {
+    console.log(
+      '⚠️ Buffer analysis failed:',
+      err.message,
+    );
+
+    return {
+      duration: 0,
+      bitrate: 0,
+      fileSize: buffer.length || 0,
+      loudness: 0,
+    };
+  }
+}
 
   // =========================
   // 🧠 AI CHECK

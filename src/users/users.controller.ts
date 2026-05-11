@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   UseGuards,
@@ -15,6 +16,7 @@ import { UsersService } from './users.service';
 import { AccountType } from './account-type.enum';
 
 import { JwtAuthGuard } from '../auth/jwt.guard';
+import { AdminGuard } from '../auth/admin.guard';
 import { GetUser } from '../auth/get-user.decorator';
 
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -126,6 +128,18 @@ export class UsersController {
     return this.usersService.findById(userId);
   }
 
+  @Patch('contact-info')
+@UseGuards(JwtAuthGuard)
+updateContactInfo(
+  @GetUser() user: any,
+  @Body() body: any,
+) {
+  return this.usersService.updateContactInfo(
+    user.userId,
+    body,
+  );
+}
+
   // =====================
   // 💳 STRIPE STATUS (NEW)
   // =====================
@@ -188,14 +202,125 @@ export class UsersController {
   // =====================
   // 🔐 ADMIN
   // =====================
-  @UseGuards(JwtAuthGuard)
-  @Get()
-  findAll(@GetUser() user: any) {
-    if (!user?.isAdmin) {
-      throw new UnauthorizedException('Access denied ❌');
+  @UseGuards(JwtAuthGuard, AdminGuard)
+@Get()
+findAll() {
+  return this.usersService.findAll();
+}
+
+// =====================
+  // 👑 GIVE FREE ACCESS
+  // =====================
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Patch(':id/free-access')
+  async setFreeAccess(
+    @Param('id') id: string,
+    @Body()
+    body: {
+  plan: string;
+  days?: number;
+  months?: number;
+  years?: number;
+  revenuePercentage?: number;
+  isManaged?: boolean;
+},
+  ) {
+    const userId = Number(id);
+
+    if (!userId || isNaN(userId)) {
+      throw new BadRequestException(
+        'Invalid user ID ❌',
+      );
     }
 
-    return this.usersService.findAll();
+   return this.usersService.setFreeAccess(
+  userId,
+  {
+    plan: body.plan,
+    days: body.days,
+    months: body.months,
+    years: body.years,
+    revenuePercentage:
+      body.revenuePercentage,
+    isManaged:
+      body.isManaged,
+  },
+);
+  }
+
+  // =====================
+  // 💳 CUSTOM SUB PRICE
+  // =====================
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Patch(':id/custom-price')
+  async setCustomPrice(
+    @Param('id') id: string,
+    @Body('price') price: number,
+  ) {
+    const userId = Number(id);
+
+    if (!userId || isNaN(userId)) {
+      throw new BadRequestException(
+        'Invalid user ID ❌',
+      );
+    }
+
+    return this.usersService.setCustomPrice(
+      userId,
+      price,
+    );
+  }
+
+  // =====================
+  // 👑 MAKE ADMIN
+  // =====================
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Patch(':id/make-admin')
+  makeAdmin(
+    @Param('id') id: string,
+  ) {
+    return this.usersService.makeAdmin(
+      Number(id),
+    );
+  }
+
+  // =====================
+  // ❌ REMOVE ADMIN
+  // =====================
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Patch(':id/remove-admin')
+  removeAdmin(
+    @Param('id') id: string,
+  ) {
+    return this.usersService.removeAdmin(
+      Number(id),
+    );
+  }
+
+  // =====================
+  // 🚫 BAN USER
+  // =====================
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Patch(':id/ban')
+  banUser(
+    @Param('id') id: string,
+  ) {
+    return this.usersService.banUser(
+      Number(id),
+    );
+  }
+
+  // =====================
+  // ✅ UNBAN USER
+  // =====================
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Patch(':id/unban')
+  unbanUser(
+    @Param('id') id: string,
+  ) {
+    return this.usersService.unbanUser(
+      Number(id),
+    );
   }
 
   // =====================

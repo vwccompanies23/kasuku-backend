@@ -1,4 +1,10 @@
-import { Controller, Post, Body, Query } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Query,
+} from '@nestjs/common';
+
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -15,7 +21,7 @@ export class AuthController {
   ) {}
 
   // =========================
-  // 📝 SIGNUP (🔥 WITH REFERRAL)
+  // 📝 SIGNUP
   // =========================
   @Post('signup')
   signup(
@@ -24,16 +30,21 @@ export class AuthController {
   ) {
     return this.authService.signup(this.userRepo, {
       ...body,
-      referralCode: ref || body.referralCode,
+      referralCode:
+        ref || body.referralCode,
     });
   }
 
   // =========================
-  // 🔐 LOGIN
+  // 🔐 LOGIN (SEND OTP)
   // =========================
   @Post('login')
-  login(@Body() body: any) {
-    return this.authService.login(this.userRepo, body);
+  async login(@Body() body: any) {
+    return this.authService.loginAndSendOtp(
+      this.userRepo,
+      body.email,
+      body.password,
+    );
   }
 
   // =========================
@@ -41,16 +52,23 @@ export class AuthController {
   // =========================
   @Post('send-otp')
   sendOtp(@Body() body: any) {
-    return this.authService.sendOtp(body.email);
+    return this.authService.sendOtp(
+      body.email,
+    );
   }
 
   // =========================
-  // ✅ VERIFY OTP
+  // ✅ VERIFY OTP + RETURN JWT
   // =========================
   @Post('verify-otp')
-  verifyOtp(@Body() body: any) {
-    return this.authService.verifyOtp(
-      this.userRepo,
+  async verifyOtp(
+    @Body()
+    body: {
+      email: string;
+      code: string;
+    },
+  ) {
+    return await this.authService.verifyOtp(
       body.email,
       body.code,
     );

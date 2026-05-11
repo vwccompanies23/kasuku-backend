@@ -42,6 +42,7 @@ export class PaymentsController {
   distributorFeePercent = 10;
 
   @Post('preview-plan')
+  @UseGuards(JwtAuthGuard)
   async previewPlan(
     @Req() req: any,
     @Body() body: {
@@ -54,6 +55,7 @@ export class PaymentsController {
   }
 
   @Post('change-plan')
+  @UseGuards(JwtAuthGuard)
   async changePlan(
     @Req() req: any,
     @Body() body: {
@@ -67,13 +69,16 @@ export class PaymentsController {
   }
 
   @Post('cancel-later')
+  @UseGuards(JwtAuthGuard)
   async cancelLater(@Req() req: any) {
     return this.paymentsService.cancelAtPeriodEnd(req.user.id);
   }
 
   @Post('subscribe')
+  @UseGuards(JwtAuthGuard)
   async subscribe(@Body() body: any, @Req() req: any) {
-    const userId = 1;
+    const userId =
+  req.user?.userId || req.user?.id;
 
     const { plan, billing, artistCount } = body;
 
@@ -153,8 +158,13 @@ export class PaymentsController {
   }
 
   @Post('checkout')
-  async checkout(@Body() body: any) {
-    const userId = 1;
+@UseGuards(JwtAuthGuard)
+async checkout(
+  @Body() body: any,
+  @Req() req: any,
+) {
+    const userId =
+  req.user?.userId || req.user?.id;
 
     const amount = Number(body?.amount);
 
@@ -179,6 +189,7 @@ export class PaymentsController {
   }
 
   @Post('change-plan-legacy')
+  @UseGuards(JwtAuthGuard)
   async changePlanLegacy(
     @Req() req: any,
     @Body() body: {
@@ -187,8 +198,14 @@ export class PaymentsController {
       artistCount?: number;
     },
   ) {
-    const userId = req.user.id;
-    return this.paymentsService.changePlan(userId, body);
+    req.user?.userId || req.user?.id
+    const userId =
+  req.user?.userId || req.user?.id;
+
+return this.paymentsService.changePlan(
+  userId,
+  body,
+);
   }
 
   @Post('withdraw')

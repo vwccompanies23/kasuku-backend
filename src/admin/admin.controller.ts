@@ -78,9 +78,33 @@ export class AdminController {
   }
 
   // 🎁 FREE ACCESS
+  // 🎁 FREE ACCESS
   @Patch('free-access')
-  setFree(@Body() body: { userId: number; value: boolean }) {
-    return this.usersService.setFreeAccess(body.userId, body.value);
+  setFree(
+    @Body()
+    body: {
+      userId: number;
+      plan: string;
+      days?: number;
+      months?: number;
+      years?: number;
+      revenuePercentage?: number;
+      isManaged?: boolean;
+    },
+  ) {
+    return this.usersService.setFreeAccess(
+      body.userId,
+      {
+        plan: body.plan,
+        days: body.days,
+        months: body.months,
+        years: body.years,
+        revenuePercentage:
+          body.revenuePercentage,
+        isManaged:
+          body.isManaged,
+      },
+    );
   }
 
   // 💲 CUSTOM PRICE
@@ -100,6 +124,22 @@ export class AdminController {
   unban(@Param('id') id: number) {
     return this.usersService.unbanUser(Number(id));
   }
+
+  // 👑 PROMOTE TO ADMIN
+@Patch('make-admin/:id')
+makeAdmin(@Param('id') id: number) {
+  return this.usersService.makeAdmin(
+    Number(id),
+  );
+}
+
+// ❌ REMOVE ADMIN
+@Patch('remove-admin/:id')
+removeAdmin(@Param('id') id: number) {
+  return this.usersService.removeAdmin(
+    Number(id),
+  );
+}
 
   // 🗑 DELETE
   @Delete('user/:id')

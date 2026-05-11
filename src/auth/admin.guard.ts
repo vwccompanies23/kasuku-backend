@@ -5,19 +5,20 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 
+import { UserRole } from '../users/user-role.enum';
+
 @Injectable()
 export class AdminGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest();
 
-    const user = req.user; // 🔥 from JWT
+    const user = req.user;
 
     if (!user) {
       throw new ForbiddenException('Unauthorized ❌');
     }
 
-    // ✅ check admin from token
-    if (!user.isAdmin && user.role !== 'admin') {
+    if (user.role !== UserRole.ADMIN) {
       throw new ForbiddenException('Admins only 🚫');
     }
 

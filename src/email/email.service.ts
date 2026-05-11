@@ -9,9 +9,15 @@ import { Repository } from 'typeorm';
 import { I18nService } from '../i18n/i18n.service';
 import { EmailTrack } from './email-track.entity';
 import { EmailGateway } from './email.gateway';
+import { Resend } from 'resend';
+
+console.log('RESEND KEY:', process.env.RESEND_API_KEY);
 
 @Injectable()
 export class EmailService {
+
+  private resend = new Resend(process.env.RESEND_API_KEY);
+
   constructor(
     private i18n: I18nService,
 
@@ -30,7 +36,7 @@ export class EmailService {
     service: 'gmail',
     auth: {
       user: 'kasuku.platform@gmail.com',
-      pass: 'wblu pmqk shmd aanb',
+      pass: 'jnvn njjb qobi ymkz',
     },
   });
 
@@ -53,7 +59,7 @@ export class EmailService {
       name: options?.name,
       buttonText: options?.buttonText,
       buttonLink: options?.buttonLink,
-      unsubscribeLink: `https://kasuku.com/unsubscribe?email=${to}`,
+      unsubscribeLink: `https://kasukuu.com/unsubscribe?email=${to}`,
     });
 
     await this.transporter.sendMail({
@@ -88,9 +94,29 @@ export class EmailService {
       <div style="background:#000;padding:30px;font-family:sans-serif;color:#fff">
         
         <div style="text-align:center;margin-bottom:20px">
-          <h1 style="margin:0;background:linear-gradient(90deg,#ff003c,#7c3aed);-webkit-background-clip:text;color:transparent">
-            KASUKU
-          </h1>
+   
+<div style="
+  height:5px;
+  width:140px;
+  margin:15px auto 0;
+  border-radius:20px;
+  background:linear-gradient(90deg,#ff003c,#7c3aed);
+"></div>
+
+<div style="
+  display:flex;
+  justify-content:flex-end;
+  margin-top:25px;
+">
+  <img 
+    src="https://i.imgur.com/mdZGEjd.png"
+    width="55"
+    style="
+      opacity:0.95;
+      filter: drop-shadow(0 0 14px rgba(124,58,237,0.45));
+    "
+  />
+</div>
         </div>
 
         <div style="background:#0a0a0a;padding:20px;border-radius:12px">
@@ -306,14 +332,161 @@ export class EmailService {
   }
 
   // =========================
+// 🔐 OTP EMAIL (NEW)
+// =========================
+async sendOtpEmail(email: string, code: string) {
+  console.log('🔥 FUNCTION CALLED');
+
+  try {
+    console.log('📩 Sending OTP via Resend:', email);
+
+    const result = await this.resend.emails.send({
+      from: 'Kasuku <no-reply@kasukuu.com>',
+      to: email,
+      subject: '🔐 Kasuku Verification Code',
+
+     html: `
+<div style="background:#050505;padding:40px;font-family:Arial,system-ui;color:#fff;">
+
+  <!-- HEADER -->
+  <table width="100%" style="margin-bottom:25px;">
+    <tr>
+      <td align="left">
+        <div style="
+          height:6px;
+          width:140px;
+          background:linear-gradient(90deg,#ff003c,#7c3aed);
+          border-radius:10px;
+        "></div>
+      </td>
+
+      <td align="right">
+        <img 
+          src="https://i.imgur.com/mdZGEjd.png"
+          width="60"
+        />
+      </td>
+    </tr>
+  </table>
+
+  <!-- TITLE -->
+  <div style="text-align:center;margin-bottom:25px;">
+    <p style="color:#aaa;margin:0;font-size:13px;">
+      Secure Verification
+    </p>
+  </div>
+
+  <!-- CARD -->
+  <div style="
+    background:#0d0d0d;
+    padding:35px;
+    border-radius:20px;
+    text-align:center;
+    border:1px solid rgba(255,255,255,0.08);
+    box-shadow:
+      0 0 40px rgba(124,58,237,0.25),
+      inset 0 0 20px rgba(255,255,255,0.03);
+  ">
+
+    <h2 style="
+      margin-bottom:10px;
+      font-size:22px;
+      font-weight:600;
+    ">
+      Verify Your Account
+    </h2>
+
+    <p style="
+      color:#999;
+      font-size:14px;
+      margin-bottom:25px;
+    ">
+      Use the code below to continue
+    </p>
+
+    <!-- OTP BOX -->
+    <div style="
+      font-size:30px;
+      letter-spacing:10px;
+      font-weight:bold;
+      padding:16px 24px;
+      border-radius:14px;
+      background:linear-gradient(90deg,#ff003c,#7c3aed);
+      color:#fff;
+      display:inline-block;
+      margin-bottom:20px;
+      box-shadow:
+        0 0 25px rgba(255,0,60,0.5),
+        0 0 40px rgba(124,58,237,0.4);
+    ">
+      ${code}
+    </div>
+
+    <p style="
+      color:#777;
+      font-size:12px;
+    ">
+      This code expires in 5 minutes
+    </p>
+
+  </div>
+
+  <!-- FOOTER -->
+  <div style="
+    text-align:center;
+    margin-top:25px;
+    color:#444;
+    font-size:12px;
+  ">
+    © ${new Date().getFullYear()} Kasuku Platform
+  </div>
+
+</div>
+`,
+});
+
+    console.log('✅ RESEND RESULT:', result);
+    return true;
+
+  } catch (error) {
+    console.error('❌ RESEND FAILED:', error);
+    throw new Error('Email failed');
+  }
+}
+
+  // =========================
   // 🧱 BASIC TEMPLATE (EXISTING)
   // =========================
   private getTemplate(title: string, content: string) {
     return `
       <div style="background:#0f172a;padding:30px;font-family:sans-serif;color:#fff">
-        <div style="text-align:center;margin-bottom:20px">
-          <h1 style="color:#22c55e;margin:0">KASUKU</h1>
-        </div>
+        <div style="text-align:center;margin-bottom:25px">
+
+
+  <div style="
+    height:5px;
+    width:140px;
+    margin:0 auto;
+    border-radius:20px;
+    background:linear-gradient(90deg,#ff003c,#7c3aed);
+  "></div>
+
+<div style="
+  display:flex;
+  justify-content:flex-end;
+  margin-top:25px;
+">
+  <img 
+    src="https://i.imgur.com/mdZGEjd.png"
+    width="55"
+    style="
+      opacity:0.95;
+      filter: drop-shadow(0 0 14px rgba(124,58,237,0.45));
+    "
+  />
+</div>
+
+</div>
 
         <div style="background:#020617;padding:20px;border-radius:10px">
           <h2 style="color:#22c55e">${title}</h2>

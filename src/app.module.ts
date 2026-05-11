@@ -50,6 +50,9 @@ import { NotificationsGateway } from './notifications/notifications.gateway';
 import { User } from './users/user.entity';
 import { Revenue } from './revenue/revenue.entity';
 import { WithdrawalModule } from './withdrawals/withdrawal.module';
+import { CardModule } from './cards/card.module';
+import { ContractModule } from './contracts/contract.module';
+import { PricingModule } from './pricing/pricing.module';
 
 console.log('JWT:', process.env.JWT_SECRET);
 console.log('REDIS HOST:', process.env.REDIS_HOST);
@@ -113,6 +116,9 @@ console.log(
   UploadModule,
   PostsModule,
   WithdrawalModule,
+  CardModule,
+  ContractModule,
+  PricingModule,
 ],
 
   controllers: [

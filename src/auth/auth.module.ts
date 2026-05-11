@@ -9,6 +9,7 @@ import { JwtAuthGuard } from './jwt.guard';
 
 import { User } from '../users/user.entity';
 import { ReferralModule } from '../referrals/referral.module'; // 🔥 ADD
+import { EmailModule } from 'src/email/email.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ReferralModule } from '../referrals/referral.module'; // 🔥 ADD
 }),
 
     ReferralModule, // 🔥 THIS IS THE FIX
+    EmailModule,
   ],
 
   providers: [

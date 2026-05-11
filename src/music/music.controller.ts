@@ -9,14 +9,17 @@ import {
   Body,
   BadRequestException,
   Query,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-
 import { MusicService } from './music.service';
+import { JwtAuthGuard } from '../auth/jwt.guard';
 import { SubscriptionGuard } from '../common/guards/subscription.guard';
 
+@UseGuards(JwtAuthGuard)
 @Controller('music')
 export class MusicController {
   constructor(private musicService: MusicService) {}
@@ -24,10 +27,13 @@ export class MusicController {
   // =========================
   // 🎵 GET USER MUSIC (IMPORTANT)
   // =========================
-  @Get()
-  async getUserMusic(@Query('userId') userId: number) {
-    return this.musicService.getUserMusic(userId);
-  }
+ @Get()
+async getUserMusic(@Req() req: any) {
+
+  const userId = req.user.userId;
+
+  return this.musicService.getUserMusic(userId);
+}
 
   // =========================
   // 🎵 UPLOAD MUSIC
@@ -82,34 +88,49 @@ export class MusicController {
     ),
   )
   async uploadMusic(
-    @UploadedFiles()
-    files: {
-      cover?: Express.Multer.File[];
-      track?: Express.Multer.File[];
-    },
-    @Body() body: any,
-  ) {
-    const cover = files?.cover?.[0] || null;
-    const track = files?.track?.[0] || null;
+    @Req() req: any,
+  @UploadedFiles()
+  files: {
+    cover?: Express.Multer.File[];
+    track?: Express.Multer.File[];
+  },
+  @Body() body: any,
+) {
+  const cover = files?.cover?.[0] || null;
+  const track = files?.track?.[0] || null;
 
-    if (!track) {
-      throw new BadRequestException('Track is required ❌');
-    }
-
-    const cleanBody = {
-      ...body,
-      platforms:
-        typeof body.platforms === 'string'
-          ? body.platforms
-          : JSON.stringify(body.platforms || []),
-    };
-
-    return this.musicService.uploadMusic({
-      cover,
-      track,
-      body: cleanBody,
-    });
+  if (!track) {
+    throw new BadRequestException('Track is required ❌');
   }
+
+  const cleanBody = {
+  ...body,
+
+  userId: req.user.userId,
+
+  platforms:
+    typeof body.platforms === 'string'
+      ? body.platforms
+      : JSON.stringify(
+          body.platforms || [],
+        ),
+};
+
+  console.log('🔥 BODY:', cleanBody);
+ 
+
+  return this.musicService.uploadMusic({
+    cover: cover
+      ? `/uploads/${cover.filename}`
+      : null,
+
+    track,
+
+    body: cleanBody,
+
+    cloudinaryUrl: `/uploads/${track.filename}`,
+  });
+}
 
   // =========================
   // 📜 GET ALL MUSIC
@@ -126,6 +147,24 @@ export class MusicController {
   async deleteMusic(@Param('id') id: string) {
     return this.musicService.deleteMusic(Number(id));
   }
+
+  // =========================
+// ❌ DELETE MULTIPLE SONGS
+// =========================
+@Post('delete')
+async deleteSongs(
+  @Req() req: any,
+  @Body() body: { ids: number[] },
+) {
+
+  const userId =
+    req.user.userId;
+
+  return this.musicService.deleteSongs(
+    Number(userId),
+    body.ids,
+  );
+}
 
   // =========================
   // ▶️ TRACK PLAY (ANALYTICS)

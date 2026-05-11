@@ -10,11 +10,12 @@ import { UsersModule } from '../users/users.module';
 
 // 🔥 ADD THIS
 import { NotificationsGateway } from './notifications.gateway';
+import { forwardRef } from '@nestjs/common';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Notification]),
-    UsersModule,
+    forwardRef(() => UsersModule),
 
     JwtModule.register({
       secret: 'SUPER_SECRET_KEY',

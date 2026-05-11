@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToMany } from 'typeorm';
+import { Music } from '../music/music.entity';
 
 @Entity()
 export class Artist {
@@ -22,10 +23,13 @@ export class Artist {
   @Column({ nullable: true })
   userId?: number;
 
-  // ✅ FIX: match service naming
   @Column({ default: false })
   isVerified: boolean;
 
   @Column({ default: true })
   isNew: boolean;
+
+  // ✅ 🔥 ADD THIS PART (THIS FIXES YOUR ERROR)
+  @ManyToMany(() => Music, (music) => music.artists)
+  music: Music[];
 }

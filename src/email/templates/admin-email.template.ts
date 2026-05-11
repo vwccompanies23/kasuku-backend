@@ -55,7 +55,7 @@ export const adminEmailTemplate = ({
             ? `
         <!-- MAIN BUTTON -->
         <div style="margin-top:30px;">
-          <a href="https://kasuku.com/track-click?email=${email}&url=${encodeURIComponent(buttonLink)}"
+          <a href="https://kasukuu.com/track-click?email=${email}&url=${encodeURIComponent(buttonLink)}"
              style="display:inline-block; padding:14px 24px; background:linear-gradient(135deg,#7c3aed,#9333ea); color:white; border-radius:10px; text-decoration:none; font-weight:600;">
             ${buttonText || 'Open'}
           </a>

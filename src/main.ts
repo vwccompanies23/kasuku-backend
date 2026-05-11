@@ -1,64 +1,80 @@
-// 🔥 ADD THIS AT THE VERY TOP
-import * as dotenv from 'dotenv';
 import { join } from 'path';
+import * as dotenv from 'dotenv';
 
 dotenv.config({
-  path: join(__dirname, '../.env'), // ✅ correct path to backend/.env
+  path: join(__dirname, '../.env'),
 });
 
-
-// ⬇️ KEEP EVERYTHING ELSE THE SAME
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { initCloudinary } from './config/cloudinary.config';
 
 import * as express from 'express';
 import * as bodyParser from 'body-parser';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 
 async function bootstrap() {
-  // 🔥 NOW this will work
-  initCloudinary();
-
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    bodyParser: false,
-  });
+  const app =
+    await NestFactory.create<NestExpressApplication>(
+      AppModule,
+      {
+        bodyParser: false,
+      },
+    );
 
   app.enableCors({
-  origin: [
-    'http://localhost:5173',
-    'https://kasukuu.com', // 🔥 your real domain
-    'https://www.kasukuu.com',
-  ],
-  credentials: true,
-});
+    origin: [
+      'http://localhost:5173',
+      'https://kasukuu.com',
+      'https://www.kasukuu.com',
+    ],
+    credentials: true,
+  });
 
   app.useWebSocketAdapter(new IoAdapter(app));
 
-  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
-  prefix: '/uploads/',
-});
+  app.useStaticAssets(
+    join(__dirname, '..', 'uploads'),
+    {
+      prefix: '/uploads/',
+    },
+  );
 
   app.use(
     '/payments/webhook',
     bodyParser.raw({
       type: '*/*',
-      verify: (req: any, _res, buf) => {
+      verify: (
+        req: any,
+        _res,
+        buf,
+      ) => {
         req.rawBody = buf;
       },
     }),
   );
 
   app.use(bodyParser.json());
-  app.use(bodyParser.urlencoded({ extended: true }));
 
-  app.use('/uploads', express.static('uploads'));
+  app.use(
+    bodyParser.urlencoded({
+      extended: true,
+    }),
+  );
 
-  const port = process.env.PORT || 3000;
+  app.use(
+    '/uploads',
+    express.static('uploads'),
+  );
+
+  const port =
+    process.env.PORT || 3000;
+
   await app.listen(port);
 
-  console.log(`🚀 Server running on port ${port}`);
+  console.log(
+    `🚀 Server running on port ${port}`,
+  );
 }
 
 bootstrap();

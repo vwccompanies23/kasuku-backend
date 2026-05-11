@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+} from '@nestjs/common';
+
 import { ToolostProvider } from './providers/toolost.provider';
 
 import { InjectQueue } from '@nestjs/bull';
@@ -8,33 +12,69 @@ import type { Queue } from 'bull';
 export class DistributionService {
   constructor(
     private readonly toolostProvider: ToolostProvider,
-    @InjectQueue('distribution') private readonly distributionQueue: Queue,
+
+    @InjectQueue('distribution')
+    private readonly distributionQueue: Queue,
   ) {}
 
+  // =========================
+  // 🚀 QUEUE RELEASE
+  // =========================
   async sendRelease(data: any) {
-    if (!data?.title || !data?.tracks?.length) {
-      throw new BadRequestException('Invalid release data ❌');
+
+    // 🔥 TAKEDOWN
+    if (data.type === 'TAKEDOWN') {
+      console.log('🚫 TAKEDOWN REQUEST');
+
+      return {
+        success: true,
+        message:
+          'Takedown request sent to stores',
+      };
     }
 
-    console.log('\n🚀 DISTRIBUTION QUEUED');
-    console.log('Title:', data.title);
+    // ❌ VALIDATION
+    if (
+      !data?.title ||
+      !data?.tracks?.length
+    ) {
+      throw new BadRequestException(
+        'Invalid release data ❌',
+      );
+    }
 
-    const job = await this.distributionQueue.add(
-      'distribute',
-      {
-        releaseId: data.releaseId || Date.now(),
-        payload: data,
-      },
-      {
-        attempts: 5,
-        backoff: {
-          type: 'exponential',
-          delay: 5000,
-        },
-        removeOnComplete: true,
-        removeOnFail: false,
-      },
+    console.log(
+      '\n🚀 DISTRIBUTION QUEUED',
     );
+
+    console.log(
+      'Title:',
+      data.title,
+    );
+
+    // ✅ QUEUE JOB
+    const job =
+      await this.distributionQueue.add(
+        'distribute',
+        {
+          releaseId:
+            data.releaseId ||
+            Date.now(),
+
+          payload: data,
+        },
+        {
+          attempts: 5,
+
+          backoff: {
+            type: 'exponential',
+            delay: 5000,
+          },
+
+          removeOnComplete: true,
+          removeOnFail: false,
+        },
+      );
 
     return {
       success: true,
@@ -44,105 +84,217 @@ export class DistributionService {
   }
 
   // =========================
-  // 🔥 REAL DISTRIBUTOR
+  // 🔥 INTERNAL DISTRIBUTOR
   // =========================
-  async sendToRealDistributor(data: any) {
-    console.log('🌍 Sending to REAL distributor...');
+  async sendToRealDistributor(
+    data: any,
+  ) {
+    console.log(
+      '🌍 Internal distribution mode...',
+    );
 
-    const distributor = data?.distributor || 'toolost';
+    const distributor =
+      'internal';
 
-    if (distributor === 'toolost') {
-      await axios.post('https://api.toolost.com/release', data, {
-  headers: {
-    Authorization: `Bearer ${process.env.TOOLOST_API_KEY}`,
-  },
-});
+    try {
+
+      // ✅ INTERNAL ONLY
+      if (
+        distributor ===
+        'internal'
+      ) {
+        console.log(
+          '📦 Stored internally only',
+        );
+
+        return {
+          success: true,
+          message:
+            'Release stored internally ✅',
+        };
+      }
+
+      return {
+        success: false,
+        message:
+          'No distributor configured ❌',
+      };
+
+    } catch (err: any) {
+
+      console.error(
+        'Distributor error:',
+        err?.response?.data ||
+          err.message,
+      );
+
+      return {
+        success: false,
+        message:
+          'Distribution failed ❌',
+      };
     }
-
-   return {
-  success: true,
-  message: 'Mock distribution success 🚀',
-  platforms: [
-    { name: 'Spotify', status: 'processing' },
-    { name: 'Apple Music', status: 'processing' },
-    { name: 'YouTube Music', status: 'processing' },
-  ],
-};
   }
 
   // =========================
   // 🎧 SPOTIFY
   // =========================
-  async sendToSpotify(data: any) {
-    console.log('🎧 Sending to Spotify...');
+  async sendToSpotify(
+    data: any,
+  ) {
+    console.log(
+      '🎧 Sending to Spotify...',
+    );
 
-    if (!data.spotifyArtistId && !data.artists?.length) {
-      console.warn('⚠️ No Spotify Artist ID');
-      return { platform: 'spotify', status: 'skipped' };
+    if (
+      !data.spotifyArtistId &&
+      !data.artists?.length
+    ) {
+      console.warn(
+        '⚠️ No Spotify Artist ID',
+      );
+
+      return {
+        platform: 'spotify',
+        status: 'skipped',
+      };
     }
 
-    const fakeId = Math.floor(Math.random() * 1000000000);
+    const fakeId =
+      Math.floor(
+        Math.random() *
+          1000000000,
+      );
 
-    this.simulateFinalStatus('Spotify', 'N/A');
+    this.simulateFinalStatus(
+      'Spotify',
+      'N/A',
+    );
 
     return {
       platform: 'spotify',
-      platformName: 'Spotify',
+      platformName:
+        'Spotify',
       status: 'processing',
       delivered: false,
+
       url: `https://open.spotify.com/track/${fakeId}`,
     };
   }
 
-  async sendToAppleMusic(data: any) {
-    console.log('🍎 Sending to Apple Music...');
+  // =========================
+  // 🍎 APPLE MUSIC
+  // =========================
+  async sendToAppleMusic(
+    data: any,
+  ) {
+    console.log(
+      '🍎 Sending to Apple Music...',
+    );
 
-    if (!data.appleMusicId && !data.artists?.length) {
-      console.warn('⚠️ No Apple Music ID');
-      return { platform: 'apple', status: 'skipped' };
+    if (
+      !data.appleMusicId &&
+      !data.artists?.length
+    ) {
+      console.warn(
+        '⚠️ No Apple Music ID',
+      );
+
+      return {
+        platform: 'apple',
+        status: 'skipped',
+      };
     }
 
-    const fakeId = Math.floor(Math.random() * 1000000000);
+    const fakeId =
+      Math.floor(
+        Math.random() *
+          1000000000,
+      );
 
-    this.simulateFinalStatus('Apple', 'N/A');
+    this.simulateFinalStatus(
+      'Apple',
+      'N/A',
+    );
 
     return {
       platform: 'apple',
-      platformName: 'Apple Music',
+      platformName:
+        'Apple Music',
       status: 'processing',
       delivered: false,
+
       url: `https://music.apple.com/album/${fakeId}`,
     };
   }
 
-  async sendToYouTube(data: any) {
-    console.log('▶️ Sending to YouTube...');
+  // =========================
+  // ▶️ YOUTUBE MUSIC
+  // =========================
+  async sendToYouTube(
+    data: any,
+  ) {
+    console.log(
+      '▶️ Sending to YouTube...',
+    );
 
-    if (!data.youtubeChannelId && !data.artists?.length) {
-      console.warn('⚠️ No YouTube Channel ID');
-      return { platform: 'youtube', status: 'skipped' };
+    if (
+      !data.youtubeChannelId &&
+      !data.artists?.length
+    ) {
+      console.warn(
+        '⚠️ No YouTube Channel ID',
+      );
+
+      return {
+        platform: 'youtube',
+        status: 'skipped',
+      };
     }
 
-    const fakeId = Math.random().toString(36).substring(7);
+    const fakeId =
+      Math.random()
+        .toString(36)
+        .substring(7);
 
-    this.simulateFinalStatus('YouTube', 'N/A');
+    this.simulateFinalStatus(
+      'YouTube',
+      'N/A',
+    );
 
     return {
       platform: 'youtube',
-      platformName: 'YouTube Music',
+      platformName:
+        'YouTube Music',
       status: 'processing',
       delivered: false,
+
       url: `https://music.youtube.com/watch?v=${fakeId}`,
     };
   }
 
-  private simulateFinalStatus(platform: string, id?: string) {
+  // =========================
+  // 🔥 SIMULATE DSP STATUS
+  // =========================
+  private simulateFinalStatus(
+    platform: string,
+    id?: string,
+  ) {
     setTimeout(() => {
+
       if (id) {
-        console.log(`✅ ${platform} DELIVERED → ID: ${id}`);
+
+        console.log(
+          `✅ ${platform} DELIVERED → ID: ${id}`,
+        );
+
       } else {
-        console.log(`✅ ${platform} DELIVERED`);
+
+        console.log(
+          `✅ ${platform} DELIVERED`,
+        );
       }
+
     }, 3000 + Math.random() * 2000);
   }
 }

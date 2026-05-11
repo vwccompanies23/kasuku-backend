@@ -446,7 +446,6 @@ export class PaymentsService {
 
   const session = await this.stripeService.stripe.checkout.sessions.create({
     mode: 'subscription',
-    customer_email: user.email,
 
     line_items: [
       {

@@ -4,10 +4,13 @@ import {
   Column,
   CreateDateColumn,
   ManyToOne,
+  ManyToMany,
+  JoinTable,
 } from 'typeorm';
 
 import { User } from '../users/user.entity';
 import { Release } from '../releases/release.entity';
+import { Artist } from '../artists/artist.entity';
 
 @Entity()
 export class Music {
@@ -17,7 +20,7 @@ export class Music {
   @Column()
   title: string;
 
-  @Column()
+  @Column({ nullable: true })
   artist: string;
 
   @Column()
@@ -47,11 +50,103 @@ hash: string;
 @Column({ default: false })
 isDuplicate: boolean;
 
-@Column({ default: 'pending' })
+@Column({
+  default: 'draft',
+})
 status: string;
+
+// =========================
+// ✅ APPROVAL SYSTEM
+// =========================
+@Column({
+  type: 'enum',
+  enum: ['pending', 'approved', 'rejected'],
+  default: 'pending',
+})
+approvalStatus: string;
+
+@Column({
+  type: 'text',
+  nullable: true,
+})
+rejectionReason: string | null;
+
+@Column({
+  type: 'timestamp',
+  nullable: true,
+})
+approvedAt: Date | null;
+
+@Column({
+  type: 'timestamp',
+  nullable: true,
+})
+rejectedAt: Date | null;
+
+@Column({
+  type: 'text',
+  nullable: true,
+})
+adminNotes: string | null;
 
 @Column('simple-array', { nullable: true })
 issues: string[];
+
+// =========================
+// 🎼 GENRES
+// =========================
+@Column({ nullable: true })
+primaryGenre: string;
+
+@Column({ nullable: true })
+secondaryGenre: string;
+
+// =========================
+// 🎤 FEATURED ARTISTS
+// =========================
+@Column({ type: 'json', nullable: true })
+featuredArtists: {
+  name: string;
+  role: 'featured' | 'primary';
+  spotifyId?: string;
+  appleMusicId?: string;
+}[];
+
+// =========================
+// 🎤 ARTISTS (REAL SYSTEM)
+// =========================
+@ManyToMany(() => Artist, (artist) => artist.music, {
+  cascade: true,
+})
+@JoinTable()
+artists: Artist[];
+
+// =========================
+// ✍️ SONGWRITERS (ROYALTIES)
+// =========================
+@Column({ type: 'json', nullable: true })
+songwriters: {
+  name: string;
+  role: 'lyrics' | 'composition' | 'both';
+}[];
+
+// =========================
+// 🏷️ LABEL
+// =========================
+@Column({ nullable: true })
+labelName: string;
+
+// =========================
+// ⚖️ LEGAL
+// =========================
+@Column({ default: false })
+termsAccepted: boolean;
+
+@Column({ default: false })
+rightsConfirmed: boolean;
+
+@Column({ default: false })
+noFraudConfirmed: boolean;
 
   // =========================
   // 🎵 RELEASE INFO
@@ -83,7 +178,11 @@ issues: string[];
   // =========================
 // 🔥 DISTRIBUTION METADATA (NEW)
 // =========================
-@Column({ nullable: true, default: 'original' })
+@Column({
+  type: 'enum',
+  enum: ['original', 'radio_edit', 'remix', 'acoustic', 'instrumental'],
+  default: 'original',
+})
 version: string;
 
 @Column({ default: false })

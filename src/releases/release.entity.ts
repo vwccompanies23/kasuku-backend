@@ -56,16 +56,18 @@ export class Release {
   // =========================
   // 📦 DISTRIBUTION
   // =========================
-  @Column({ default: 'draft' })
+@Column({ default: 'draft' })
 status:
   | 'draft'
+  | 'ready'
   | 'processing'
   | 'submitted'
   | 'approved'
   | 'delivered'
   | 'live'
   | 'failed'
-  | 'ready';
+  | 'takedown_requested'
+  | 'removed';
 
   // =========================
 // 🕒 LIFECYCLE TRACKING (NEW)
@@ -130,6 +132,85 @@ distributor: string;
 
   @Column({ nullable: true, default: 'Kasuku.com' })
   labelName: string;
+
+
+  // =========================
+// 🎼 ADVANCED METADATA
+// =========================
+
+@Column({
+  nullable: true,
+  default: 'clean',
+})
+contentRating: string;
+// clean | explicit
+
+@Column({
+  nullable: true,
+})
+primaryGenre: string;
+
+@Column({
+  nullable: true,
+})
+secondaryGenre: string;
+
+@Column({
+  nullable: true,
+})
+songwriter: string;
+
+@Column({
+  nullable: true,
+})
+composer: string;
+
+@Column({
+  nullable: true,
+})
+producer: string;
+
+@Column({
+  nullable: true,
+})
+copyrightOwner: string;
+
+@Column({
+  nullable: true,
+})
+publishingRights: string;
+
+@Column({
+  nullable: true,
+})
+releaseVersion: string;
+// remix, live, acoustic, deluxe
+
+@Column({
+  default: false,
+})
+isCoverSong: boolean;
+
+@Column({
+  default: false,
+})
+dolbyAtmos: boolean;
+
+@Column({
+  nullable: true,
+})
+territory: string;
+
+@Column({
+  nullable: true,
+})
+metadataLanguage: string;
+
+@Column({
+  type: 'simple-array',
+  nullable: true,
+})
+platforms: string[];
 
   // =========================
   // 🎵 FILES

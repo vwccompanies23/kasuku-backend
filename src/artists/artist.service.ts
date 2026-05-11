@@ -18,7 +18,7 @@ export class ArtistService {
     const artist: Artist = this.artistRepo.create({
       name,
       isNew: true,
-      isVerified: false, // ✅ FIXED
+      isVerified: false,
     });
 
     return await this.artistRepo.save(artist);
@@ -33,11 +33,6 @@ export class ArtistService {
     appleMusicId?: string;
     youtubeChannelId?: string;
   }): Promise<Artist> {
-    if (!data.spotifyId && !data.appleMusicId && !data.youtubeChannelId) {
-      throw new BadRequestException(
-        'At least one platform ID is required',
-      );
-    }
 
     const artist: Artist = this.artistRepo.create({
       name: data.name,
@@ -45,7 +40,7 @@ export class ArtistService {
       appleMusicId: data.appleMusicId,
       youtubeChannelId: data.youtubeChannelId,
       isNew: false,
-      isVerified: true, // ✅ FIXED
+      isVerified: true,
     });
 
     return await this.artistRepo.save(artist);
@@ -54,27 +49,15 @@ export class ArtistService {
   // =========================
   // 🤖 AUTO MATCH DSP
   // =========================
-  async autoMatchDSP(name: string) {
-    try {
-      const spotifyRes: any = await axios.get(
-        `https://api.spotify.com/v1/search?q=${encodeURIComponent(name)}&type=artist`,
-        {
-          headers: {
-            Authorization: `Bearer ${process.env.SPOTIFY_TOKEN}`,
-          },
-        },
-      );
+  async autoMatchDSP(
+    name: string,
+  ) {
 
-      const artist = spotifyRes?.data?.artists?.items?.[0];
+    console.log(
+      '🎵 DSP matching skipped (internal mode)',
+    );
 
-      return {
-        spotifyId: artist?.id || null,
-        spotifyName: artist?.name || null,
-      };
-    } catch (err: any) {
-      console.log('DSP match failed', err?.message);
-      return null;
-    }
+    return null;
   }
 
   // =========================
@@ -87,23 +70,31 @@ export class ArtistService {
     appleMusicId?: string;
     youtubeChannelId?: string;
   }): Promise<Artist> {
-    let artist: Artist | null = await this.artistRepo.findOne({
-      where: { name: data.name },
-    });
+
+    let artist: Artist | null =
+      await this.artistRepo.findOne({
+        where: { name: data.name },
+      });
 
     if (artist) return artist;
 
-    const match = await this.autoMatchDSP(data.name);
+    const match =
+      await this.autoMatchDSP(data.name);
 
     if (data.isFirstRelease) {
-      artist = await this.createNewArtist(data.name);
+      artist =
+        await this.createNewArtist(data.name);
     } else {
-      artist = await this.linkExistingArtist(data);
+      artist =
+        await this.linkExistingArtist(data);
     }
 
-    if (match?.spotifyId) {
-      artist.spotifyId = match.spotifyId;
-      artist.isVerified = true; // ✅ FIXED
+    if (
+      match &&
+      (match as any).spotifyId
+    ) {
+      artist.spotifyId =
+        (match as any).spotifyId;
     }
 
     return await this.artistRepo.save(artist);
@@ -112,9 +103,14 @@ export class ArtistService {
   // =========================
   // 🔍 SEARCH ARTISTS
   // =========================
-  async search(name: string): Promise<Artist[]> {
+  async search(
+    name: string,
+  ): Promise<Artist[]> {
+
     return this.artistRepo.find({
-      where: { name: ILike(`%${name}%`) },
+      where: {
+        name: ILike(`%${name}%`),
+      },
       take: 10,
     });
   }
@@ -130,17 +126,34 @@ export class ArtistService {
       youtubeChannelId?: string;
     },
   ): Promise<Artist> {
-    const artist = await this.artistRepo.findOne({
-      where: { id: artistId },
-    });
 
-    if (!artist) throw new BadRequestException('Artist not found');
+    const artist =
+      await this.artistRepo.findOne({
+        where: { id: artistId },
+      });
 
-    if (data.spotifyId) artist.spotifyId = data.spotifyId;
-    if (data.appleMusicId) artist.appleMusicId = data.appleMusicId;
-    if (data.youtubeChannelId) artist.youtubeChannelId = data.youtubeChannelId;
+    if (!artist) {
+      throw new BadRequestException(
+        'Artist not found',
+      );
+    }
 
-    artist.isVerified = true; // ✅ FIXED
+    if (data.spotifyId) {
+      artist.spotifyId =
+        data.spotifyId;
+    }
+
+    if (data.appleMusicId) {
+      artist.appleMusicId =
+        data.appleMusicId;
+    }
+
+    if (data.youtubeChannelId) {
+      artist.youtubeChannelId =
+        data.youtubeChannelId;
+    }
+
+    artist.isVerified = true;
 
     return await this.artistRepo.save(artist);
   }
