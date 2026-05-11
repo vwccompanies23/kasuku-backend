@@ -178,30 +178,38 @@ if (
 
   await this.usersRepo.save(user);
 
-  // 📧 EMAIL
-  await this.emailService.send(
-    user.email,
-    '🎉 Kasuku Access Granted',
-    `
-    Your account has been upgraded to ${data.plan.toUpperCase()} access.
 
-    ${
-      data.months
-        ? `Access expires in ${data.months} month(s).`
-        : 'You have unlimited access.'
-    }
+// 📧 EMAIL
+  try {
+    await this.emailService.send(
+      user.email,
+      '🎉 Kasuku Access Granted',
+      `
+      Your account has been upgraded to ${data.plan.toUpperCase()} access.
 
-    Revenue share: ${
-      user.revenuePercentage
-    }%
-    `,
-    {
-      name: user.artistName,
-      buttonText: 'Open Dashboard 🚀',
-      buttonLink:
-        'https://kasukuu.com/dashboard',
-    },
-  );
+      ${
+        data.months
+          ? `Access expires in ${data.months} month(s).`
+          : 'You have unlimited access.'
+      }
+
+      Revenue share: ${
+        user.revenuePercentage
+      }%
+      `,
+      {
+        name: user.artistName,
+        buttonText: 'Open Dashboard 🚀',
+        buttonLink:
+          'https://kasukuu.com/dashboard',
+      },
+    );
+  } catch (err) {
+    console.log(
+      'Grant access email failed:',
+      err.message,
+    );
+  }
 
   return {
     success: true,
