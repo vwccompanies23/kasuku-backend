@@ -170,8 +170,9 @@ async createFullRelease(data: {
       title: body.title,
 
       artistName: artist.name,
-      
+
 platforms: body.platforms || [],
+
       type:
         tracks.length > 1
           ? ReleaseType.ALBUM

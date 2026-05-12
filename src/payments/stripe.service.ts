@@ -65,8 +65,8 @@ export class StripeService {
 
     return this.stripe.accountLinks.create({
       account: accountId,
-      refresh_url: `${frontend}/retry`,
-      return_url: `${frontend}/dashboard`,
+      refresh_url: `${frontend}/reauth`,
+      return_url: `${frontend}/success`,
       type: 'account_onboarding',
     });
   }
@@ -111,13 +111,24 @@ export class StripeService {
   // 🔗 ONBOARDING LINK
   // =========================
   async createAccountLink(accountId: string) {
-    return this.stripe.accountLinks.create({
-      account: accountId,
-      refresh_url: 'http://localhost:3000/reauth',
-      return_url: 'http://localhost:3000/success',
-      type: 'account_onboarding',
-    });
+  const frontend = process.env.FRONTEND_URL;
+
+  if (!frontend) {
+    throw new BadRequestException(
+      'FRONTEND_URL missing ❌',
+    );
   }
+
+  return this.stripe.accountLinks.create({
+    account: accountId,
+
+    refresh_url: `${frontend}/reauth`,
+
+    return_url: `${frontend}/success`,
+
+    type: 'account_onboarding',
+  });
+}
 
   // =========================
   // 💳 ONE-TIME PAYMENT

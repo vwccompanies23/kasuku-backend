@@ -59,7 +59,7 @@ export class PayoutsCron {
       const status =
         await this.paymentsService.getStripeStatus(user.id);
 
-      if (!status.connected || !status.payouts_enabled) {
+      if (!status.connected || !status.payoutsEnabled) {
         console.log(`⚠️ ${user.email} not ready for payouts`);
         return;
       }

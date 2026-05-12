@@ -136,13 +136,21 @@ export class PaymentsController {
       await this.userRepo.save(user);
     }
 
-    const onboarding =
-      await this.stripeService.createAccountLink(accountId);
+    try {
+  const onboarding =
+    await this.stripeService.createAccountLink(accountId);
 
-    return {
-      success: true,
-      url: onboarding.url,
-    };
+  return {
+    success: true,
+    url: onboarding.url,
+  };
+} catch (err) {
+  console.log('STRIPE CONNECT ERROR:', err);
+
+  throw new BadRequestException(
+    err.message || 'Stripe connect failed ❌',
+  );
+}
   }
 
   @Get('stripe/status')

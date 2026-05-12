@@ -565,22 +565,31 @@ async handleWebhook(req: any, sig: string) {
   // 🔐 STRIPE STATUS
   // =========================
   async getStripeStatus(userId: number) {
-    const user = await this.userRepo.findOne({
-      where: { id: userId },
-    });
+  const user = await this.userRepo.findOne({
+    where: { id: userId },
+  });
 
-    if (!user?.stripeAccountId) {
-      return { connected: false };
-    }
-
-    const account = await this.stripeService.stripe.accounts.retrieve(
-      user.stripeAccountId,
-    );
-
+  if (!user?.stripeAccountId) {
     return {
-      connected: true,
-      payouts_enabled: account.payouts_enabled,
-      charges_enabled: account.charges_enabled,
+      connected: false,
     };
   }
+
+ const account =
+  await this.stripeService.stripe.accounts.retrieve(
+    user.stripeAccountId,
+  );
+
+ return {
+  connected:
+    account.details_submitted &&
+    account.charges_enabled,
+
+  onboardingComplete:
+    account.details_submitted,
+
+  payoutsEnabled:
+    account.payouts_enabled,
+ };
+ }
 }
