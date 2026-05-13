@@ -65,7 +65,7 @@ export class StripeService {
 
     return this.stripe.accountLinks.create({
       account: accountId,
-      refresh_url: `${frontend}/reauth`,
+      refresh_url: `${frontend}/connect-stripe`,
       return_url: `${frontend}/success`,
       type: 'account_onboarding',
     });
@@ -122,9 +122,9 @@ export class StripeService {
   return this.stripe.accountLinks.create({
     account: accountId,
 
-    refresh_url: `${frontend}/reauth`,
+    refresh_url: `${frontend}/connect-stripe`,
 
-    return_url: `${frontend}/success`,
+    return_url: `${frontend}/stripe-success`,
 
     type: 'account_onboarding',
   });

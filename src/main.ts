@@ -27,6 +27,7 @@ async function bootstrap() {
       'http://localhost:5173',
       'https://kasukuu.com',
       'https://www.kasukuu.com',
+      'https://kasuku-dashboard-eccrlh7qz-vwccompanies23s-projects.vercel.app',
     ],
     credentials: true,
   });

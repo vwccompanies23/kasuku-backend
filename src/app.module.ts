@@ -53,6 +53,7 @@ import { WithdrawalModule } from './withdrawals/withdrawal.module';
 import { CardModule } from './cards/card.module';
 import { ContractModule } from './contracts/contract.module';
 import { PricingModule } from './pricing/pricing.module';
+import { SpotifyModule } from './spotify/spotify.module';
 
 console.log('JWT:', process.env.JWT_SECRET);
 console.log('REDIS HOST:', process.env.REDIS_HOST);
@@ -94,6 +95,7 @@ console.log(
   TypeOrmModule.forFeature([User, Revenue]),
 
   UsersModule,
+  SpotifyModule,
   ReleasesModule,
   EarningsModule,
   NotificationsModule,
